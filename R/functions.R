@@ -518,12 +518,10 @@ F2H <- function(
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
-  <<<<<<< HEAD
+
   # reading input files
   times <- c()
   times <- tic(times, "Start")
-  =======
-    >>>>>>> 3814da04c05a9317b3e0e2f62de692a998e7308c
 
   setwd(dsdir)
 
