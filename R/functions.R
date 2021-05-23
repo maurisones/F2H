@@ -53,7 +53,7 @@ coveringEdges <- function(X, Y, df){
   keys <- unlist(lapply(X, paste, collapse="-"))
   keys[which(keys == "")] <- "0"
   keys <- unlist(lapply(keys, digest, algo = 'md5'))
-  h <- hash(keys=keys, values=1:length(combs))
+  h <- hash(keys=keys, values=1:length(Y))
 
   #for (i in 1:nc){
   out <- foreach (i = 1:nc, .export=c("mlinha", "has.key", "digest")) %dopar%{
@@ -320,9 +320,10 @@ compute_predictions_prob <- function(truemte, predarff, combs, id){
   mymldr <- mldr_from_dataframe(original, labelIndices = seq(1,ncol(truemte)), name = "original")
 
   # obtem as probabilidades das predicoes
-  times <- tic(times, paste("Starting matrix thresholds H->Flat on data ", id, sep = ""))
+  #TODO define a globa var to store times
+  #times <- tic(times, paste("Starting matrix thresholds H->Flat on data ", id, sep = ""))
   predmte <- measureHtoFlat(predarff, combs, colnames(truemte))
-  times <- tic(times, paste("Finished matrix thresholds H->Flat on data ", id, sep = ""))
+  #times <- tic(times, paste("Finished matrix thresholds H->Flat on data ", id, sep = ""))
 
   write.csv(truemte, paste("true-", id, ".csv", sep = ""), row.names = FALSE)
   write.csv(predmte, paste("pred-", id, ".csv", sep = ""), row.names = FALSE)
@@ -331,7 +332,7 @@ compute_predictions_prob <- function(truemte, predarff, combs, id){
 }
 
 
-compute_results_t1 <- function(id){
+compute_results_t1 <- function(id, fileid, dsname){
 
   true <- read.csv(paste("true-", id, ".csv", sep=""))
   true <- data.frame(sapply(true, function(x) as.numeric(as.character(x))))
@@ -356,13 +357,13 @@ compute_results_t1 <- function(id){
     line <- paste(names(result)[i], ": ", result[i])
     logger(paste("RESULT-", fileid, "t1-", id,":", sep=""), line)
   }
-  write.csv(result, paste("results", id, dsname, fold, fileid, "t1.csv", sep = "-"))
+  write.csv(result, paste("results", id, dsname, fileid, "t1.csv", sep = "-"))
 
 
 }
 
 
-compute_results_t2 <- function(id){
+compute_results_t2 <- function(id, fileid, dsname){
 
   true <- read.csv(paste("true-", id, ".csv", sep=""))
   true <- data.frame(sapply(true, function(x) as.numeric(as.character(x))))
@@ -406,7 +407,7 @@ compute_results_t2 <- function(id){
     line <- paste(names(result)[i], ": ", result[i])
     logger(paste("RESULT-", fileid, "t2-", id,":", sep=""), line)
   }
-  write.csv(result, paste("results", id, dsname, fold, fileid, "t2.csv", sep = "-"))
+  write.csv(result, paste("results", id, dsname, fileid, "t2.csv", sep = "-"))
 
 
 
@@ -414,7 +415,7 @@ compute_results_t2 <- function(id){
 
 
 
-compute_results_t3 <- function(id){
+compute_results_t3 <- function(id, fileid, dsname){
 
   true <- read.csv(paste("true-", id, ".csv", sep=""))
   true <- data.frame(sapply(true, function(x) as.numeric(as.character(x))))
@@ -470,14 +471,15 @@ compute_results_t3 <- function(id){
     line <- paste(names(result)[i], ": ", result[i])
     logger(paste("RESULT-", fileid, "t3-", id,":", sep=""), line)
   }
-  write.csv(result, paste("results", id, dsname, fold, fileid, "t3.csv", sep = "-"))
+  write.csv(result, paste("results", id, dsname, fileid, "t3.csv", sep = "-"))
 }
 
-findClusJar <- function(){
+
+findF2HLibPath <- function(){
   for (path in .libPaths()){
-    pathclus <- file.path(paste(path, "/F2H/java/MyClus.jar", sep=""))
-    if (file.exists(pathclus)){
-      return(pathclus)
+    pathF2H <- file.path(paste(path, "/F2H", sep=""))
+    if (file.exists(pathF2H)){
+      return(pathF2H)
     }
   }
 
@@ -486,8 +488,22 @@ findClusJar <- function(){
 }
 
 
+findClusJar <- function(){
+  pathclus <- file.path(paste(findF2HLibPath(), "/java/MyClus.jar", sep=""))
+  if (file.exists(pathclus)){
+    return(pathclus)
+  }
+
+  # TODO: message
+  return(NULL)
+}
+
+
 F2H <- function(
-  dsname = "yeast",
+  dsname = "birds",
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
   dsdir = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -497,13 +513,249 @@ F2H <- function(
   clusWParam = 0.8,
   clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
   threads = 1,
-  ensembleClus = 0
-){
+  ensembleClus = 0){
+
   # define some input vars
-  clusExe <- paste(javaExe, javaMem, clusJar, sep = " ")
+  clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
+
+  <<<<<<< HEAD
+  # reading input files
+  times <- c()
+  times <- tic(times, "Start")
+  =======
+    >>>>>>> 3814da04c05a9317b3e0e2f62de692a998e7308c
+
+  setwd(dsdir)
+
+  # reading training file
+  print(train_file)
+  dfmldr <- mldr(train_file, force_read_from_file = T)
+  dfx <- dfmldr$dataset
+  head(dfx)
+
+  # salva o nome original das classes
+  original_classnames <- names(dfmldr$attributes[dfmldr$labels$index])
+
+  # obtem os tipos dos atributos
+  att_types <- dfmldr$attributes
+
+  # ordena os atributos colocando as classes no fim
+  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
+  dfx <- dfx[,attorder]
+  firstLabel <- length(dfmldr$attributesIndexes) + 1
+  rm(dfmldr)
+  lastLabel <- ncol(dfx)
+  lastAtt <- firstLabel -1
+
+  # ordena a lista por os atributos foram reordenados
+  att_types <- att_types[attorder]
+
+  # renomeia atributos e classes para evitar problemas de caracteres especiais
+  colnames(dfx) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
 
 
+  # obtendo o arquivo de teste
+  dfmldr <- mldr(test_file, force_read_from_file = T)
+  dfxt <- dfmldr$dataset
 
+  # ordena os atributos colocando as classes no fim
+  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
+  dfxt <- dfxt[,attorder]
+
+
+  # renomeia atributos e classes para evitar problemas de caracteres especiais
+  colnames(dfxt) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
+
+
+  # obtendo o arquivo de validacao
+  dfmldr <- mldr(valid_file, force_read_from_file = T)
+  dfxv <- dfmldr$dataset
+
+  # ordena os atributos colocando as classes no fim
+  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
+  dfxv <- dfxv[,attorder]
+
+
+  # renomeia atributos e classes para evitar problemas de caracteres especiais
+  colnames(dfxv) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
+
+  times <- tic(times, "Finished file loading")
+
+
+  # inicia com o espaco de classes ####
+  df <- dfx[,firstLabel:lastLabel]
+  rownames(df) <- NULL
+  colnames(df) <- seq(1,ncol(df),1)
+
+  if (ensembleClus == 0){
+    fileid = "F2Hg"
+  } else {
+    fileid = "EF2Hg"
+  }
+  dirf <- file.path(paste(dsdir,"/", dsname, fileid, sep = ""))
+
+  unlink(dirf, recursive = TRUE)
+  dir.create(dirf)
+  setwd(dirf)
+
+  logger("Output file defined", dirf)
+  times <- tic(times, "Finished temp directory creation")
+
+  combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
+  times <- tic(times, "Finished PCBO")
+
+  inss <- Rpcbo::computeIntents(df, combs, threads = threads)
+
+  logger(paste("Found", length(combs), "formal concepts ...", sep=" "))
+  times <- tic(times, "Finished extent computing")
+
+
+  # calcula os edges entre os conceitos ####
+  edges <- coveringEdges(inss, combs, df)
+  logger(paste("Found", length(edges), "edges ...", sep=" "))
+  times <- tic(times, "Finished covering edges")
+
+
+  # adiciona o no raiz e seus edges quando necessario
+  if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
+    # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
+    filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
+    novo <- length(combs) + 1
+    combs[[novo]] <- as.numeric(NULL)
+    inss[[novo]] <- as.numeric(rownames(df))
+    for (i in 1:length(filhosr)){
+      edges[[length(edges) + 1]] <- c(novo, filhosr[i])
+    }
+  }
+  times <- tic(times, "Finished adding root")
+
+  # encontra o R que contem todos os atributos ou o maior numero de atributos (atributo aqui = instancia)
+  r <- which.max(lengths(inss))
+
+  # descobrir os filhos de r
+  fr <- which(lengths(lapply(edges, function(x){which(x[1] == r)})) == 1)
+  edge_order <- c(fr,seq(1,length(edges))[-fr])
+
+  # gera a string com a hierarquia de classes para posteriormente gerar os arquivos arffh
+  strpf <- foreach (i = 1:length(edge_order)) %dopar%{
+    ed <- edge_order[i]
+    strt <- paste(edges[[ed]][1], "/", edges[[ed]][2], sep="")
+    strt
+  }
+  str <- paste(unlist(strpf), collapse = ",")
+  str <- paste("@ATTRIBUTE class                                   hierarchical ", str, sep="")
+  times <- tic(times, "Finished montagem da string da hierarquia")
+
+
+  # append validation set to test set - clus doesn't make predictions to validation set
+  lastTest <- nrow(dfxt)
+  dfxt <- rbind(dfxt, dfxv)
+
+
+  dsdata <- arffH_par("", paste(dsname, ".arff", sep = ""), dfx, dfxt, dfxv, firstLabel, lastLabel, str, inss, combs, r, att_types)
+
+  times <- tic(times, "Finished arrfH writting")
+
+
+  # check
+  # real classes on train only
+  # lista_conc <- dsdata$list_concTr
+  # rc <- dfx[,firstLabel:lastLabel]
+  # #rc <- rbind(rc, dfxt[,firstLabel:lastLabel])
+  #
+  # transc <- matrix(0, nrow = nrow(rc), ncol = (lastLabel - firstLabel + 1))
+  # for (i in 1:nrow(transc)){
+  #   transci <- unique(sort(unlist(combs[as.numeric(lista_conc[[i]])])))
+  #   transc[i, transci] <- 1
+  #   #  print(nrow(truem))
+  # }
+  # colnames(transc) <- colnames(rc)
+  #
+  # if (length(which((rc - transc) != 0))){
+  #   cat ("ERRO: diferença entre as classes dos conceitos e as classes verdadeiras")
+  # }
+  # times <- tic(times, "Finished label equivalence checking")
+  #
+
+  # gerar conf Clus
+  clusSfile <- paste(dsname, ".s", sep="")
+  clusTrfile <- paste(dsname, "_train.arff", sep="")
+  clusTefile <- paste(dsname, "_test.arff", sep="")
+  clusVafile <- paste(dsname, "_valid.arff", sep="")
+  geraConfClusHMC(clusSfile, clusTrfile, clusTefile, clusVafile, clusWType, clusWParam, clusOptimizeErrorMeasure)
+
+  print(clusSfile)
+  print(clusTrfile)
+  print(clusTefile)
+
+  # executar Clus ####
+  if (ensembleClus == 0){
+    cmd <- paste(clusExe, " ", dsname,  sep= "")
+  } else {
+    cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
+  }
+  print(cmd)
+  system(cmd)
+
+  times <- tic(times, "Finished ClusHMC")
+
+
+  # obtem os resultados ####
+  predarfftr <- read.arff(paste(dsname, ".train.1.pred.arff", sep = ""))
+  predarffte <- read.arff(paste(dsname, ".test.pred.arff", sep = ""))
+
+  # split test and validations predictions
+  predarffva <- predarffte[(lastTest+1):nrow(predarffte),]
+  predarffte <- predarffte[1:lastTest,]
+  dfxt <- dfxt[1:lastTest,]
+
+
+  compute_predictions_prob(dfx[, firstLabel:lastLabel], predarfftr, combs, "tr")
+  compute_predictions_prob(dfxv[, firstLabel:lastLabel], predarffva, combs, "va")
+  compute_predictions_prob(dfxt[, firstLabel:lastLabel], predarffte, combs, "te")
+
+
+  compute_results_t1("tr", fileid, dsname)
+  compute_results_t1("va", fileid, dsname)
+  compute_results_t1("te", fileid, dsname)
+
+  compute_results_t2("tr", fileid, dsname)
+  compute_results_t2("va", fileid, dsname)
+  compute_results_t2("te", fileid, dsname)
+
+  compute_results_t3("tr", fileid, dsname)
+  compute_results_t3("va", fileid, dsname)
+  compute_results_t3("te", fileid, dsname)
+
+
+  list.save(inss, "list_inss.rds")
+  list.save(combs, "list_combs.rds")
+  list.save(original_classnames, "list_original_classnames.rds")
+
+  infos <- c()
+  infos[1] <- dsname
+  infos[2] <- dsdir
+  infos[3] <- minSupportConcetps
+  infos[4] <- clusExe
+  infos[5] <- threads
+  infos[6] <- length(combs)
+  infos[7] <- length(edges)
+  infos[8] <- clusWType
+  infos[9] <- clusWParam
+  infos[10] <- clusOptimizeErrorMeasure
+  infos[11] <- ensembleClus
+
+
+  names(infos) <- c("Dataset", "Outdir", "Min. Sup. PCBO", "Clus", "Threads", "Number of concepts", "Number of edges","clusWType","clusWParam","clusOptimizeErrorMeasure", "ensemble")
+  write.csv(x = infos, file = paste(dsname, "-metadata.csv", sep = ""))
+
+  print(infos)
+
+  times <- tic(times, "Finished writting results")
+
+  timest <- tac(times)
+  apply(timest, 1, logger, "TIMES")
+  write.csv(timest, "times.csv")
 
 
 
