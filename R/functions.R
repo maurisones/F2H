@@ -502,8 +502,6 @@ F2H <- function(
   # define some input vars
   clusExe <- paste(javaExe, javaMem, clusJar, sep = " ")
 
-  times <- c()
-  times <- tic(times, "Start")
 
 
 
