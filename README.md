@@ -86,7 +86,7 @@ Specifies the number of threads to use. The F2H uses parallel processing to exec
 
 
 
-The above 3 parameters are Clus specific configuratiosn. For more about them see the Clus User Manual available at: https://dtai.cs.kuleuven.be/clus/. Defaul values are presented bellow:
+The bellow 3 parameters are Clus specific configuratiosn. For more about them see the Clus User Manual available at: https://dtai.cs.kuleuven.be/clus/. Defaul values are presented bellow:
 
 ```{r setup, include=FALSE}
   clusWType = "ExpMaxParentWeight"
