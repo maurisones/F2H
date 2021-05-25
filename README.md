@@ -4,26 +4,23 @@ author: "Mauri Ferrandin"
 date: "25/05/2021"
 ---
 
+
+## Install from github
 ```{r setup, include=FALSE}
 devtools::install_github("maurisones/F2H")
 ```
 
-## R Markdown
+## Additional packages
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+F2H requires many other packages to run, the most part of them can be directed installed from CRAN mirrors. The bellow mentioned are also/only available from github:
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+Rpcbo:  
+```{r setup, include=FALSE}
+devtools::install_github("maurisones/Rpcbo")
+```
+Utiml:
+```{r setup, include=FALSE}
+devtools::install_github("rivolli/utiml")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
