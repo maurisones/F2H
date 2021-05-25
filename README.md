@@ -1,12 +1,11 @@
 ---
-title: "F2H"
+title: "F2H - under development"
 author: "Mauri Ferrandin"
 date: "25/05/2021"
-output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+devtools::install_github("maurisones/F2H")
 ```
 
 ## R Markdown
