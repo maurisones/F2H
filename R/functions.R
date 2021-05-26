@@ -46,7 +46,11 @@ subsets <- function(x){
 
 
 
-coveringEdges <- function(X, Y, df){
+coveringEdges <- function(X, Y, df, threads = 1){
+
+  clusters <- parallel::makeCluster(threads)
+  doParallel::registerDoParallel(clusters)
+
   nc <- length(X)
   M <- seq(1,ncol(df),1)
 
@@ -97,11 +101,18 @@ coveringEdges <- function(X, Y, df){
   for(i in 1:length(out)){
     edges <- c(edges,  out[[i]])
   }
+
+  doParallel::stopImplicitCluster()
+
   return(edges)
 }
 
 
-arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast, classstr, inss, combs, root, att_types){
+arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast, classstr, inss, combs, root, att_types, threads = 1){
+
+  clusters <- parallel::makeCluster(threads)
+  doParallel::registerDoParallel(clusters)
+
   linesToWrite = c()
 
   arffAtts <- arff[,1:(labelFirst - 1)]
@@ -169,6 +180,7 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
   linesToWriteT <- c(linesToWriteT, unlist(str))
 
 
+
   str <- predm <- foreach (i = 1:nrow(arffv)) %dopar%{
     #for (i in 1:nrow(dfva)){
     attsi <- paste(paste(arffAttsv[i,], collapse = ","))
@@ -186,6 +198,7 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
   }
   linesToWriteV <- c(linesToWriteV, unlist(str))
 
+  doParallel::stopImplicitCluster()
 
   filename <- paste(dir,gsub(".arff", "_train.arff", fileArffH), sep="")
   filenameT <- paste(dir,gsub(".arff", "_test.arff", fileArffH), sep="")
@@ -200,6 +213,8 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
   fileConn<-file(filenameV)
   writeLines(paste(linesToWriteV, collapse = "\n"), fileConn)
   close(fileConn)
+
+  doParallel::stopImplicitCluster()
 
   ret <- list()
   return(ret)
@@ -500,10 +515,14 @@ findClusJar <- function(){
 
 
 F2H <- function(
-  dsname = "birds",
-  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  #dsname = "birds",
+  #train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  #test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  #valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  dsname = "yeast",
+  train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+  valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdir = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -515,7 +534,8 @@ F2H <- function(
   threads = 1,
   ensembleClus = 0){
 
-  # define some input vars
+
+   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
 
@@ -609,7 +629,7 @@ F2H <- function(
 
 
   # calcula os edges entre os conceitos ####
-  edges <- coveringEdges(inss, combs, df)
+  edges <- coveringEdges(inss, combs, df, threads)
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
 
@@ -634,6 +654,10 @@ F2H <- function(
   fr <- which(lengths(lapply(edges, function(x){which(x[1] == r)})) == 1)
   edge_order <- c(fr,seq(1,length(edges))[-fr])
 
+
+  clusters <- parallel::makeCluster(threads)
+  doParallel::registerDoParallel(clusters)
+
   # gera a string com a hierarquia de classes para posteriormente gerar os arquivos arffh
   strpf <- foreach (i = 1:length(edge_order)) %dopar%{
     ed <- edge_order[i]
@@ -642,7 +666,11 @@ F2H <- function(
   }
   str <- paste(unlist(strpf), collapse = ",")
   str <- paste("@ATTRIBUTE class                                   hierarchical ", str, sep="")
+
+  doParallel::stopImplicitCluster()
+
   times <- tic(times, "Finished montagem da string da hierarquia")
+
 
 
   # append validation set to test set - clus doesn't make predictions to validation set
@@ -650,7 +678,7 @@ F2H <- function(
   dfxt <- rbind(dfxt, dfxv)
 
 
-  dsdata <- arffH_par("", paste(dsname, ".arff", sep = ""), dfx, dfxt, dfxv, firstLabel, lastLabel, str, inss, combs, r, att_types)
+  dsdata <- arffH_par("", paste(dsname, ".arff", sep = ""), dfx, dfxt, dfxv, firstLabel, lastLabel, str, inss, combs, r, att_types, threads)
 
   times <- tic(times, "Finished arrfH writting")
 
@@ -754,7 +782,6 @@ F2H <- function(
   timest <- tac(times)
   apply(timest, 1, logger, "TIMES")
   write.csv(timest, "times.csv")
-
 
 
 }
