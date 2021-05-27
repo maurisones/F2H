@@ -102,7 +102,7 @@ coveringEdges <- function(X, Y, df, threads = 1){
     edges <- c(edges,  out[[i]])
   }
 
-  doParallel::stopImplicitCluster()
+  parallel::stopCluster(clusters)
 
   return(edges)
 }
@@ -198,7 +198,7 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
   }
   linesToWriteV <- c(linesToWriteV, unlist(str))
 
-  doParallel::stopImplicitCluster()
+  parallel::stopCluster(clusters)
 
   filename <- paste(dir,gsub(".arff", "_train.arff", fileArffH), sep="")
   filenameT <- paste(dir,gsub(".arff", "_test.arff", fileArffH), sep="")
@@ -213,8 +213,6 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
   fileConn<-file(filenameV)
   writeLines(paste(linesToWriteV, collapse = "\n"), fileConn)
   close(fileConn)
-
-  doParallel::stopImplicitCluster()
 
   ret <- list()
   return(ret)
@@ -515,14 +513,14 @@ findClusJar <- function(){
 
 
 F2H <- function(
-  #dsname = "birds",
-  #train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-  #test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-  #valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-  dsname = "yeast",
-  train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-  test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-  valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+  dsname = "birds",
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  #dsname = "yeast",
+  #train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+  #test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+  #valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdir = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -549,7 +547,7 @@ F2H <- function(
   print(train_file)
   dfmldr <- mldr(train_file, force_read_from_file = T)
   dfx <- dfmldr$dataset
-  head(dfx)
+
 
   # salva o nome original das classes
   original_classnames <- names(dfmldr$attributes[dfmldr$labels$index])
@@ -667,7 +665,7 @@ F2H <- function(
   str <- paste(unlist(strpf), collapse = ",")
   str <- paste("@ATTRIBUTE class                                   hierarchical ", str, sep="")
 
-  doParallel::stopImplicitCluster()
+  parallel::stopCluster(clusters)
 
   times <- tic(times, "Finished montagem da string da hierarquia")
 
@@ -783,7 +781,111 @@ F2H <- function(
   apply(timest, 1, logger, "TIMES")
   write.csv(timest, "times.csv")
 
-
 }
 
+EF2H <- function(
+  dsname = "birds",
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  #dsname = "yeast",
+  #train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+  #test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+  #valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+  dsdire = tempdir(),
+  javaExe = "java",
+  javaMem = "-Xmx3g",
+  clusJar = findClusJar(),
+  minSupportConcetps = 0,
+  clusWType = "ExpMaxParentWeight",
+  clusWParam = 0.8,
+  clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
+  threads = 1,
+  ensembleClus = 0,
+  m = 10, subsample = 0.75, attr.space = 0.5, replacement = TRUE){
 
+
+  # reading input files
+  times <- c()
+  times <- tic(times, "Start F2H Ensemble")
+
+  setwd(dsdire)
+
+  # reading training file
+
+  #train_file = "C:/Users/Mauri Ferrandin/Downloads/F2H/birds/birds_train_1"
+  print(train_file)
+  mdata <- mldr(train_file, force_read_from_file = T)
+
+
+  nrow <- ceiling(mdata$measures$num.instances * subsample)
+  ncol <- ceiling(length(mdata$attributesIndexes) * attr.space)
+
+  idx <- lapply(seq(m), function(iteration) {
+    list(
+      rows = sample(mdata$measures$num.instances, nrow, replacement),
+      cols = sample(mdata$attributesIndexes, ncol)
+    )
+  })
+
+  ef2hres <- list();
+  for(iteration in seq(1:m)){
+    print(iteration)
+    setwd(dsdire)
+    ndata <- create_subset(mdata, idx[[iteration]]$rows, idx[[iteration]]$cols)
+
+    train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
+    write_arff(ndata, file=train_file_e, write.xml = T)
+
+    ef2hres[[iteration]] <- F2H(
+      dsname = train_file_e,
+      train_file = file.path(paste(dsdire, "/", train_file_e, sep="")),
+      test_file = test_file,
+      valid_file = valid_file,
+      dsdir = dsdire,
+      javaExe = "java",
+      javaMem = "-Xmx3g",
+      clusJar = findClusJar(),
+      minSupportConcetps = 0,
+      clusWType = "ExpMaxParentWeight",
+      clusWParam = 0.8,
+      clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
+      threads = 1,
+      ensembleClus = 0
+    )
+
+  }
+
+  bipartt2 <- list()
+  for(iteration in seq(1:m)){
+    train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
+    setwd(file.path(paste(dsdire, "/", train_file_e, "F2Hg", sep="")))
+
+    bipartt2[[iteration]] <- read.csv("pred-te-t2.csv")
+
+  }
+
+  sumbipart <- bipartt2[[1]]
+  for(iteration in seq(2:m)){
+    sumbipart = sumbipart + bipartt2[[iteration]]
+  }
+
+  sumbipart[sumbipart >= ceiling(m/2)] <- m
+  sumbipart[sumbipart < ceiling(m/2)] <- 0
+  sumbipart[sumbipart >= m] <- 1
+
+  # read test arff
+  # test_file = "C:/Users/Mauri Ferrandin/Downloads/F2H/birds/birds_test_1"
+  mdatat <- mldr(test_file, force_read_from_file = T)
+
+  result <- multilabel_evaluate(mdatat, sumbipart)
+  for (i in 1:length(result)){
+    line <- paste(names(result)[i], ": ", result[i])
+    logger(paste("RESULT-", "EF2Ht2-", sep=""), line)
+  }
+
+
+  times <- tic(times, "Finished EF2H")
+
+  #return(sumbipart)
+}
