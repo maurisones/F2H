@@ -828,8 +828,13 @@ EF2H <- function(
     )
   })
 
-  ef2hres <- list();
-  for(iteration in seq(1:m)){
+  threadsens <- as.integer(threads/2)
+  threadsf2h <- threads - threadsens
+  clusters <- parallel::makeCluster(threadsens)
+  doParallel::registerDoParallel(clusters)
+
+  out <- foreach (iteration = 1:m, .export=c()) %dopar%{
+  #for(iteration in seq(1:m)){
     print(iteration)
     setwd(dsdire)
     ndata <- create_subset(mdata, idx[[iteration]]$rows, idx[[iteration]]$cols)
@@ -837,7 +842,7 @@ EF2H <- function(
     train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
     write_arff(ndata, file=train_file_e, write.xml = T)
 
-    ef2hres[[iteration]] <- F2H(
+    F2H(
       dsname = train_file_e,
       train_file = file.path(paste(dsdire, "/", train_file_e, sep="")),
       test_file = test_file,
@@ -850,38 +855,58 @@ EF2H <- function(
       clusWType = "ExpMaxParentWeight",
       clusWParam = 0.8,
       clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
-      threads = 1,
+      threads = threadsf2h,
       ensembleClus = 0
     )
 
   }
+  parallel::stopCluster(clusters)
 
+
+  bipartt1 <- list()
   bipartt2 <- list()
+  bipartt3 <- list()
   for(iteration in seq(1:m)){
     train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
     setwd(file.path(paste(dsdire, "/", train_file_e, "F2Hg", sep="")))
 
+    bipartt1[[iteration]] <- as.bipartition(as.mlresult(read.csv("pred-te-t1.csv")))
     bipartt2[[iteration]] <- read.csv("pred-te-t2.csv")
+    bipartt3[[iteration]] <- read.csv("pred-te-t3.csv")
 
   }
 
-  sumbipart <- bipartt2[[1]]
+  sumbpt1 <- bipartt1[[1]]
+  sumbpt2 <- bipartt2[[1]]
+  sumbpt3 <- bipartt3[[1]]
   for(iteration in seq(2:m)){
-    sumbipart = sumbipart + bipartt2[[iteration]]
+    sumbpt1 = sumbpt1 + sumbpt1[[iteration]]
+    sumbpt2 = sumbpt2 + sumbpt2[[iteration]]
+    sumbpt3 = sumbpt3 + sumbpt3[[iteration]]
   }
 
-  sumbipart[sumbipart >= ceiling(m/2)] <- m
-  sumbipart[sumbipart < ceiling(m/2)] <- 0
-  sumbipart[sumbipart >= m] <- 1
+  sumbpt1[sumbpt1 >= ceiling(m/2)] <- m
+  sumbpt2[sumbpt2 < ceiling(m/2)] <- 0
+  sumbpt3[sumbpt3 >= m] <- 1
 
-  # read test arff
-  # test_file = "C:/Users/Mauri Ferrandin/Downloads/F2H/birds/birds_test_1"
   mdatat <- mldr(test_file, force_read_from_file = T)
 
-  result <- multilabel_evaluate(mdatat, sumbipart)
+  result <- multilabel_evaluate(mdatat, sumbpt1)
   for (i in 1:length(result)){
     line <- paste(names(result)[i], ": ", result[i])
-    logger(paste("RESULT-", "EF2Ht2-", sep=""), line)
+    logger(paste(dsname, "-", m, "-", subsample, "-", attr.space,"-", "RESULT-", "EF2Ht1-", sep=""), line)
+  }
+
+  result <- multilabel_evaluate(mdatat, sumbpt2)
+  for (i in 1:length(result)){
+    line <- paste(names(result)[i], ": ", result[i])
+    logger(paste(dsname, "-", m, "-", subsample, "-", attr.space,"-", "RESULT-", "EF2Ht2-", sep=""), line)
+  }
+
+  result <- multilabel_evaluate(mdatat, sumbpt3)
+  for (i in 1:length(result)){
+    line <- paste(names(result)[i], ": ", result[i])
+    logger(paste(dsname, "-", m, "-", subsample, "-", attr.space,"-", "RESULT-", "EF2Ht3-", sep=""), line)
   }
 
 
