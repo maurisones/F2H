@@ -1,18 +1,23 @@
 
 logger <- function(a, b=NULL, c=NULL, d=NULL, e=NULL, f=NULL){
-  if (missing(b)){
-    pars <- c(a)
-  } else if (missing(c)){
-    pars <- c(a, b)
-  } else if (missing(d)){
-    pars <- c(a, b, c)
-  } else if (missing(e)){
-    pars <- c(a, b, c , d)
-  } else if (missing(f)){
-    pars <- c(a, b, c, d, e)
-  } else {
-    pars <- c(a, b, c, d, e, f)
-  }
+
+  pars <- c(a, b, c, d, e, f)
+  #print(pars)
+  #pars <- pars[-is.null(pars)]
+  #print(pars)
+  # if (missing(b)){
+  #   pars <- c(a)
+  # } else if (missing(c)){
+  #   pars <- c(a, b)
+  # } else if (missing(d)){
+  #   pars <- c(a, b, c)
+  # } else if (missing(e)){
+  #   pars <- c(a, b, c , d)
+  # } else if (missing(f)){
+  #   pars <- c(a, b, c, d, e)
+  # } else {
+  #
+  # }
 
   str = paste(pars, sep = " ")
   cat(format(Sys.time(), "%a %b %d %X %Y"), str, "\n", sep = ": ")
@@ -31,18 +36,18 @@ mlinha <- function(m, df){
 }
 
 
-subsets <- function(x){
-  combs <- list()
-  if (length(x) == 0){
-    return(combs)
-  }
-
-  for (i in 1:length(x)){
-    comb <- combn(x, i, simplify = FALSE)
-    combs <- c(combs, comb)
-  }
-  return(combs)
-}
+# subsets <- function(x){
+#   combs <- list()
+#   if (length(x) == 0){
+#     return(combs)
+#   }
+#
+#   for (i in 1:length(x)){
+#     comb <- combn(x, i, simplify = FALSE)
+#     combs <- c(combs, comb)
+#   }
+#   return(combs)
+# }
 
 
 
@@ -272,10 +277,10 @@ WritePredictions = {Train, Test}"
 }
 
 
-concToClass <- function(inss, conclist){
-  ret <- unique(sort(unlist(inss[as.numeric(conclist)])))
-  return(ret)
-}
+#concToClass <- function(inss, conclist){
+#  ret <- unique(sort(unlist(inss[as.numeric(conclist)])))
+#  return(ret)
+#}
 
 tic <- function(times, label = "auto"){
   times[length(times) + 1] <- Sys.time()
