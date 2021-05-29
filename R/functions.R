@@ -848,13 +848,8 @@ EF2H <- function(
       test_file = test_file,
       valid_file = valid_file,
       dsdir = dsdire,
-      javaExe = "java",
-      javaMem = "-Xmx3g",
-      clusJar = findClusJar(),
+      javaExe = javaExe,
       minSupportConcetps = 0,
-      clusWType = "ExpMaxParentWeight",
-      clusWParam = 0.8,
-      clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
       threads = threadsf2h,
       ensembleClus = 0
     )
