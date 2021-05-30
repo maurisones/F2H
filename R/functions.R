@@ -2,22 +2,6 @@
 logger <- function(a, b=NULL, c=NULL, d=NULL, e=NULL, f=NULL){
 
   pars <- c(a, b, c, d, e, f)
-  #print(pars)
-  #pars <- pars[-is.null(pars)]
-  #print(pars)
-  # if (missing(b)){
-  #   pars <- c(a)
-  # } else if (missing(c)){
-  #   pars <- c(a, b)
-  # } else if (missing(d)){
-  #   pars <- c(a, b, c)
-  # } else if (missing(e)){
-  #   pars <- c(a, b, c , d)
-  # } else if (missing(f)){
-  #   pars <- c(a, b, c, d, e)
-  # } else {
-  #
-  # }
 
   str = paste(pars, sep = " ")
   cat(format(Sys.time(), "%a %b %d %X %Y"), str, "\n", sep = ": ")
@@ -34,21 +18,6 @@ mlinha <- function(m, df){
   }
   return(ret)
 }
-
-
-# subsets <- function(x){
-#   combs <- list()
-#   if (length(x) == 0){
-#     return(combs)
-#   }
-#
-#   for (i in 1:length(x)){
-#     comb <- combn(x, i, simplify = FALSE)
-#     combs <- c(combs, comb)
-#   }
-#   return(combs)
-# }
-
 
 
 coveringEdges <- function(X, Y, df, threads = 1){
@@ -724,7 +693,9 @@ F2H <- function(
     cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
   }
   print(cmd)
-  system(cmd)
+  clusout <- system(cmd, intern = TRUE)
+
+  cat(clusout)
 
   times <- tic(times, "Finished ClusHMC")
 
@@ -789,14 +760,14 @@ F2H <- function(
 }
 
 EF2H <- function(
-  dsname = "birds",
-  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-  #dsname = "yeast",
-  #train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-  #test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-  #valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+  #dsname = "birds",
+  #train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  #test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  #valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  dsname = "yeast",
+  train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+  valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdire = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -847,6 +818,8 @@ EF2H <- function(
     train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
     write_arff(ndata, file=train_file_e, write.xml = T)
 
+    sink(paste(train_file_e, ".out", sep=""))
+
     F2H(
       dsname = train_file_e,
       train_file = file.path(paste(dsdire, "/", train_file_e, sep="")),
@@ -858,6 +831,7 @@ EF2H <- function(
       threads = threadsf2h,
       ensembleClus = 0
     )
+    sink()
 
   }
   parallel::stopCluster(clusters)
@@ -885,9 +859,12 @@ EF2H <- function(
     sumbpt3 = sumbpt3 + sumbpt3[[iteration]]
   }
 
-  sumbpt1[sumbpt1 >= ceiling(m/2)] <- m
+  sumbpt1[sumbpt1 < ceiling(m/2)] <- 0
+  sumbpt1[sumbpt1 >= ceiling(m/2)] <- 1
   sumbpt2[sumbpt2 < ceiling(m/2)] <- 0
-  sumbpt3[sumbpt3 >= m] <- 1
+  sumbpt2[sumbpt2 >= ceiling(m/2)] <- 1
+  sumbpt3[sumbpt3 < ceiling(m/2)] <- 0
+  sumbpt3[sumbpt3 >= ceiling(m/2)] <- 1
 
   mdatat <- mldr(test_file, force_read_from_file = T)
 
@@ -914,3 +891,4 @@ EF2H <- function(
 
   #return(sumbipart)
 }
+
