@@ -760,14 +760,14 @@ F2H <- function(
 }
 
 EF2H <- function(
-  #dsname = "birds",
-  #train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-  #test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-  #valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-  dsname = "yeast",
-  train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-  test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-  valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+  dsname = "birds",
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  #dsname = "yeast",
+  #train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+  #test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+  #valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdire = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -777,6 +777,7 @@ EF2H <- function(
   clusWParam = 0.8,
   clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
   threads = 1,
+  threadsf2h = 1,
   ensembleClus = 0,
   m = 10, subsample = 0.75, attr.space = 0.5, replacement = TRUE){
 
@@ -804,9 +805,7 @@ EF2H <- function(
     )
   })
 
-  threadsens <- as.integer(threads/2)
-  threadsf2h <- threads - threadsens
-  clusters <- parallel::makeCluster(threadsens)
+  clusters <- parallel::makeCluster(threads)
   doParallel::registerDoParallel(clusters)
 
   out <- foreach (iteration = 1:m, .export=c()) %dopar%{
@@ -818,7 +817,7 @@ EF2H <- function(
     train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
     write_arff(ndata, file=train_file_e, write.xml = T)
 
-    sink(paste(train_file_e, ".out", sep=""))
+    sink(paste(train_file_e, ".out", sep=""), )
 
     F2H(
       dsname = train_file_e,
@@ -832,7 +831,6 @@ EF2H <- function(
       ensembleClus = 0
     )
     sink()
-
   }
   parallel::stopCluster(clusters)
 
