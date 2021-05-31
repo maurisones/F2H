@@ -817,7 +817,7 @@ EF2H <- function(
     train_file_e <- paste(dsname, "_ens_", iteration,"_train", sep="")
     write_arff(ndata, file=train_file_e, write.xml = T)
 
-    sink(paste(train_file_e, ".out", sep=""))
+    sink(paste(train_file_e, ".out", sep=""), )
 
     F2H(
       dsname = train_file_e,
