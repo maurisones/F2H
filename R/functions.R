@@ -779,7 +779,7 @@ EF2H <- function(
   threads = 1,
   threadsf2h = 1,
   ensembleClus = 0,
-  m = 10, subsample = 0.75, attr.space = 0.5, replacement = TRUE){
+  m = 10, subsample = 0.75, attr.space = 0.5, replacement = TRUE, seed = NA){
 
 
   # reading input files
@@ -797,6 +797,11 @@ EF2H <- function(
 
   nrow <- ceiling(mdata$measures$num.instances * subsample)
   ncol <- ceiling(length(mdata$attributesIndexes) * attr.space)
+
+
+  if (!anyNA(seed)) {
+    set.seed(seed)
+  }
 
   idx <- lapply(seq(m), function(iteration) {
     list(
@@ -892,4 +897,7 @@ EF2H <- function(
 
   #return(sumbipart)
 }
+
+
+
 
