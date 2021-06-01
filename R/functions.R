@@ -887,6 +887,8 @@ EF2H <- function(
 
 
   times <- tic(times, "Finished EF2H")
+  timest <- tac(times)
+  apply(timest, 1, logger, "TIMES")
 
   #return(sumbipart)
 }
