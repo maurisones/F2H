@@ -832,7 +832,7 @@ EF2H <- function(
       dsdir = dsdire,
       javaExe = javaExe,
       javaMem = javaMem,
-      minSupportConcetps = 0,
+      minSupportConcetps = minSupportConcetps,
       threads = threadsf2h,
       ensembleClus = 0
     )
