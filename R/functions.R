@@ -1,3 +1,6 @@
+.onAttach <- function(libname, pkgname) {
+  options(java.parameters = "-Xmx10g")
+}
 
 logger <- function(a, b=NULL, c=NULL, d=NULL, e=NULL, f=NULL){
 
@@ -510,6 +513,7 @@ F2H <- function(
    # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
+  print(paste("Java Option: ", getOption("java.parameters"), sep = ""))
 
   # reading input files
   times <- c()
@@ -779,7 +783,7 @@ EF2H <- function(
   threads = 1,
   threadsf2h = 1,
   ensembleClus = 0,
-  m = 10, subsample = 0.75, attr.space = 0.5, replacement = TRUE, seed = NA){
+  m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA){
 
 
   # reading input files
