@@ -1,5 +1,5 @@
 .onAttach <- function(libname, pkgname) {
-  options(java.parameters = "-Xmx10g")
+  options(java.parameters = "-Xmx2g")
 }
 
 logger <- function(a, b=NULL, c=NULL, d=NULL, e=NULL, f=NULL){
@@ -489,6 +489,63 @@ findClusJar <- function(){
 }
 
 
+readArffR<- function(arfffile){
+
+  conn <- file(arfffile,open="r")
+
+  attnames = c()
+  atttypes = c()
+
+  data <- data.frame();
+
+  while ( TRUE ) {
+
+    # read a single line
+    line = readLines(conn, n = 1)
+
+    #print(line)
+
+    # test if EOF
+    if ( length(line) == 0 ) {
+      break
+    }
+
+    if (startsWith(toupper(line), "@ATTRIBUTE")){
+      x = strsplit(line, " ")[[1]]
+      x = x[x != ""]
+      attnames <- c(attnames,x[2])
+      atttypes <- c(atttypes,x[3])
+      next
+    }
+
+    if (length(line) > 0 && !startsWith(line, "@")){ # empty lines and other starting with @
+      x = strsplit(line, ",")[[1]]
+      data = rbind(data,x);
+    }
+
+  }
+
+  close(conn)
+
+  colnames(data) = attnames
+  rownames(data) = NULL
+
+  # setting datatypes
+  for (i in 1:ncol(data)){
+    if (atttypes[i] == "{1,0}" || atttypes[i] == "{0,1}"|| atttypes[i] == "numeric"){
+      data[,i] <- as.numeric(data[,i])
+    } else {
+      if (atttypes[i] == "string"){
+        data[,i] <- as.character(data[,i])
+      }
+    }
+  }
+  data
+}
+
+
+
+
 F2H <- function(
   dsname = "birds",
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
@@ -509,8 +566,7 @@ F2H <- function(
   threads = 1,
   ensembleClus = 0){
 
-
-   # define some input vars
+  # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
   print(paste("Java Option: ", getOption("java.parameters"), sep = ""))
@@ -703,10 +759,13 @@ F2H <- function(
 
   times <- tic(times, "Finished ClusHMC")
 
-
   # obtem os resultados ####
-  predarfftr <- read.arff(paste(dsname, ".train.1.pred.arff", sep = ""))
-  predarffte <- read.arff(paste(dsname, ".test.pred.arff", sep = ""))
+  #predarfftr <- read.arff(paste(dsname, ".train.1.pred.arff", sep = ""))
+  #predarffte <- read.arff(paste(dsname, ".test.pred.arff", sep = ""))
+
+  predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
+  predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
+
 
   # split test and validations predictions
   predarffva <- predarffte[(lastTest+1):nrow(predarffte),]
@@ -785,7 +844,6 @@ EF2H <- function(
   ensembleClus = 0,
   m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA){
 
-
   # reading input files
   times <- c()
   times <- tic(times, "Start F2H Ensemble")
@@ -817,8 +875,9 @@ EF2H <- function(
   clusters <- parallel::makeCluster(threads)
   doParallel::registerDoParallel(clusters)
 
-  out <- foreach (iteration = 1:m, .export=c()) %dopar%{
+  out <- foreach (iteration = 1:m) %dopar%{
   #for(iteration in seq(1:m)){
+
     print(iteration)
     setwd(dsdire)
     ndata <- create_subset(mdata, idx[[iteration]]$rows, idx[[iteration]]$cols)
@@ -899,9 +958,21 @@ EF2H <- function(
   timest <- tac(times)
   apply(timest, 1, logger, "TIMES")
 
-  #return(sumbipart)
 }
 
+
+
+# arffile <- "/home/mauri/temp/tmc2007_500_ens_1_train.train.1.pred.arff"
+#
+# start_time <- Sys.time()
+# x <- read.arff(arfffile)
+# end_time <- Sys.time()
+# end_time - start_time
+#
+# start_time <- Sys.time()
+# y <- F2H::readArffR(arfffile)
+# end_time <- Sys.time()
+# end_time - start_time
 
 
 
