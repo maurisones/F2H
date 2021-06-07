@@ -1,7 +1,7 @@
 Package: F2H
 Type: Package
 Title: What the Package Does (Title Case)
-Version: 0.1.0
+Version: 0.1.1
 Author: Mauri Ferrandin
 Maintainer: Mauri Ferrandin <maurisones@gmail.com>
 Description: One paragraph description of what the package does as one or more full sentences.

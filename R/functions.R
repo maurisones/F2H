@@ -763,8 +763,11 @@ F2H <- function(
   #predarfftr <- read.arff(paste(dsname, ".train.1.pred.arff", sep = ""))
   #predarffte <- read.arff(paste(dsname, ".test.pred.arff", sep = ""))
 
+  logger("Starting reading arff results from Clus")
   predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
   predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
+
+  logger("Finished reading arff results from Clus")
 
 
   # split test and validations predictions
