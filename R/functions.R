@@ -737,7 +737,7 @@ F2H <- function(
     cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
   }
   print(cmd)
-  #clusout <- system(cmd, intern = TRUE)
+  clusout <- system(cmd, intern = TRUE)
 
   cat(clusout)
 
