@@ -492,40 +492,24 @@ findClusJar <- function(){
 readArffR<- function(arfffile){
 
   conn <- file(arfffile,open="r")
+  lines = readLines(conn)
+  close(conn)
+
+  attindexexs <- which(startsWith(lines, "@ATT"))
+  datastart <- which(startsWith(lines, "@DATA")) + 1
+
+  data <- read.table(text=paste(lines[datastart:length(lines)], collapse='\n'), header = FALSE, stringsAsFactors = FALSE, sep=',')
+
 
   attnames = c()
   atttypes = c()
 
-  data <- data.frame();
-
-  while ( TRUE ) {
-
-    # read a single line
-    line = readLines(conn, n = 1)
-
-    #print(line)
-
-    # test if EOF
-    if ( length(line) == 0 ) {
-      break
-    }
-
-    if (startsWith(toupper(line), "@ATTRIBUTE")){
-      x = strsplit(line, " ")[[1]]
-      x = x[x != ""]
-      attnames <- c(attnames,x[2])
-      atttypes <- c(atttypes,x[3])
-      next
-    }
-
-    if (length(line) > 0 && !startsWith(line, "@")){ # empty lines and other starting with @
-      x = strsplit(line, ",")[[1]]
-      data = rbind(data,x);
-    }
-
+  for (i in attindexexs){
+    x = strsplit(lines[i], " ")[[1]]
+    x = x[x != ""]
+    attnames <- c(attnames,x[2])
+    atttypes <- c(atttypes,x[3])
   }
-
-  close(conn)
 
   colnames(data) = attnames
   rownames(data) = NULL
@@ -968,12 +952,12 @@ EF2H <- function(
 # arffile <- "/home/mauri/temp/tmc2007_500_ens_1_train.train.1.pred.arff"
 #
 # start_time <- Sys.time()
-# x <- read.arff(arfffile)
+# x <- read.arff(arffile)
 # end_time <- Sys.time()
 # end_time - start_time
 #
 # start_time <- Sys.time()
-# y <- F2H::readArffR(arfffile)
+# y <- F2H::readArffR(arffile)
 # end_time <- Sys.time()
 # end_time - start_time
 
