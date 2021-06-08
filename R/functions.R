@@ -492,40 +492,24 @@ findClusJar <- function(){
 readArffR<- function(arfffile){
 
   conn <- file(arfffile,open="r")
+  lines = readLines(conn)
+  close(conn)
+
+  attindexexs <- which(startsWith(lines, "@ATT"))
+  datastart <- which(startsWith(lines, "@DATA")) + 1
+
+  data <- read.table(text=paste(lines[datastart:length(lines)], collapse='\n'), header = FALSE, stringsAsFactors = FALSE, sep=',')
+
 
   attnames = c()
   atttypes = c()
 
-  data <- data.frame();
-
-  while ( TRUE ) {
-
-    # read a single line
-    line = readLines(conn, n = 1)
-
-    #print(line)
-
-    # test if EOF
-    if ( length(line) == 0 ) {
-      break
-    }
-
-    if (startsWith(toupper(line), "@ATTRIBUTE")){
-      x = strsplit(line, " ")[[1]]
-      x = x[x != ""]
-      attnames <- c(attnames,x[2])
-      atttypes <- c(atttypes,x[3])
-      next
-    }
-
-    if (length(line) > 0 && !startsWith(line, "@")){ # empty lines and other starting with @
-      x = strsplit(line, ",")[[1]]
-      data = rbind(data,x);
-    }
-
+  for (i in attindexexs){
+    x = strsplit(lines[i], " ")[[1]]
+    x = x[x != ""]
+    attnames <- c(attnames,x[2])
+    atttypes <- c(atttypes,x[3])
   }
-
-  close(conn)
 
   colnames(data) = attnames
   rownames(data) = NULL
@@ -753,7 +737,7 @@ F2H <- function(
     cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
   }
   print(cmd)
-  clusout <- system(cmd, intern = TRUE)
+  #clusout <- system(cmd, intern = TRUE)
 
   cat(clusout)
 
@@ -906,6 +890,7 @@ EF2H <- function(
   }
   parallel::stopCluster(clusters)
 
+  logger("Starting reading probabilities from the m classifiers")
 
   bipartt1 <- list()
   bipartt2 <- list()
@@ -919,6 +904,8 @@ EF2H <- function(
     bipartt3[[iteration]] <- read.csv("pred-te-t3.csv")
 
   }
+
+  logger("Finished reading probabilities from the m classifiers")
 
   sumbpt1 <- bipartt1[[1]]
   sumbpt2 <- bipartt2[[1]]
@@ -936,7 +923,11 @@ EF2H <- function(
   sumbpt3[sumbpt3 < ceiling(m/2)] <- 0
   sumbpt3[sumbpt3 >= ceiling(m/2)] <- 1
 
+  logger("Finished majority voting schema")
+
+  logger("Starting reading the test file")
   mdatat <- mldr(test_file, force_read_from_file = T)
+  logger("Finished reading the test file")
 
   result <- multilabel_evaluate(mdatat, sumbpt1)
   for (i in 1:length(result)){
@@ -968,12 +959,12 @@ EF2H <- function(
 # arffile <- "/home/mauri/temp/tmc2007_500_ens_1_train.train.1.pred.arff"
 #
 # start_time <- Sys.time()
-# x <- read.arff(arfffile)
+# x <- read.arff(arffile)
 # end_time <- Sys.time()
 # end_time - start_time
 #
 # start_time <- Sys.time()
-# y <- F2H::readArffR(arfffile)
+# y <- F2H::readArffR(arffile)
 # end_time <- Sys.time()
 # end_time - start_time
 
