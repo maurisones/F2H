@@ -15,5 +15,4 @@
 
 hello <- function() {
   print("Hello, world!")
-  print("Hello, world!")
 }
