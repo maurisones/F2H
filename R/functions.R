@@ -566,7 +566,7 @@ F2H <- function(
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
-  print(paste("Java Option: ", getOption("java.parameters"), sep = ""))
+  print(paste("Java Option (for RJava and not for Clus): ", getOption("java.parameters"), sep = ""))
 
   times <- c()
   times <- tic(times, "Start")
@@ -854,7 +854,7 @@ F2Hhsc <- function(
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
-  print(paste("Java Option: ", getOption("java.parameters"), sep = ""))
+  print(paste("Java Option (for RJava and not for Clus): ", getOption("java.parameters"), sep = ""))
 
   # reading input files
   times <- c()
