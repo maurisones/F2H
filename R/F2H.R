@@ -519,6 +519,55 @@ readArffR<- function(arfffile){
   data
 }
 
+showPredictionLevels <- function(){
+  predlevels <- read.csv("predlevel-te.csv")
+  combs <- list.load("list_combs.rds")
+
+  predconc <- read.csv("pred-conc-te.csv")
+  predconc <- predconc[,which(startsWith(colnames(predconc), "Original"))]
+  predconc <- predconc[,-ncol(predconc)]
+
+  colnames(predconc) <- as.numeric(gsub(x = colnames(predconc), pattern = "Original.p.", replacement = ""))
+
+  for (c in 1:ncol(predlevels)){
+    conc <- unique(predlevels[,c])
+    conc <- conc[which(conc > 0)]
+    if (length(conc) < 1){
+      logger("LEVELPREDINFO", colnames(predlevels)[c], "Has no predictions")
+      next
+    }
+    totconc <- unlist(lapply(conc, function(x){length(which(predlevels[,c] == x))}))
+    for (i in 1:length(conc)){
+      cc <- conc[i]
+      logger("LEVELPREDINFO", colnames(predlevels)[c], cc, totconc[i], paste(combs[[cc]], collapse = "-"))
+
+
+      if (length(combs[[cc]]) > 1){
+        ccc <- which(unlist(lapply(combs, function(x){sum(x %in% combs[[cc]]) == length(x) && length(x) > 0})))
+      } else{
+        ccc <- cc
+      }
+
+      ccci <- unlist(lapply(ccc, function(x){which(colnames(predconc) == as.character(x))}))
+
+      #pegar as linhas em que o conceito foi usado para a classe
+      insts <- which(predlevels[,c] == cc)
+
+      for (ins in insts){
+        for (co in 1:length(ccci)){
+          ci <- ccci[co]
+          ca <- ccc[co]
+          logger("\tLEVELPREDINFO - inst: ", ins,  paste("concept: ", ca, paste(combs[[ca]], collapse = "-"), sprintf("%.3f",predconc[ins, ci]), sep = "\t"))
+        }
+      }
+
+    }
+  }
+
+}
+
+
+
 F2H <- function(
   dsname = "birds",
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
