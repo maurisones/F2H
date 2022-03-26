@@ -251,29 +251,6 @@ WritePredictions = {Train, Test}"
 }
 
 
-
-
-
-# measureHtoFlat <- function(predarff, combs, truem_colnames){
-#
-#   dfpred <- predarff[,which(startsWith(colnames(predarff), "Original"))]
-#   dfpred <- dfpred[,-ncol(dfpred)]
-#
-#   colnames(dfpred) <- as.numeric(gsub(x = colnames(dfpred), pattern = "Original-p-", replacement = ""))
-#
-#   predm <- matrix(0, nrow = nrow(dfpred), ncol = length(truem_colnames))
-#   for (i in 1:ncol(dfpred)){
-#     metai <- unlist(combs[as.numeric(colnames(dfpred)[i])])
-#     for (m in metai){
-#       menores <- which((predm[,m] - dfpred[,i]) < 0)
-#       predm[menores, m] <- dfpred[menores, i]
-#     }
-#   }
-#   colnames(predm) <- truem_colnames
-#
-#   return(predm)
-# }
-
 measureHtoFlat <- function(predarff, combs, truem_colnames){
 
   dfpred <- predarff[,which(startsWith(colnames(predarff), "Original"))]
