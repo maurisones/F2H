@@ -587,7 +587,7 @@ F2H <- function(
   clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
   threads = 1,
   ensembleClus = 0,
-  retPredsConfs = TRUE){
+  retPredsConfs = TRUE, dagMethod="Rpcbo"){
 
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
@@ -671,8 +671,23 @@ F2H <- function(
   logger("Output file defined", dirf)
   times <- tic(times, "Finished temp directory creation")
 
-  combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
+  # cria a hierarquia com o algoritmo selecionado
+  if (dagMethod == "Rpcbo"){
+    combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
+  } else if (dagMethod == "Kohonen"){
+    combs <- compute_nodeskohonen(df)
+  } else if (dagMethod == "K-means"){
+    combs <- compute_nodeskmeans(df)
+  } else if (dagMethod == "Rpcbol2+"){
+    combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
+    # elimina primeiro nivel
+    combs <- combs[which(lengths(combs) > 1)]
+  } else {
+    print("Select a method for Dag creation!")
+    return
+  }
   times <- tic(times, "Finished PCBO")
+
 
   inss <- Rpcbo::computeIntents(df, combs, threads = threads)
 
@@ -1171,17 +1186,178 @@ testeF2Hhsc <- function(){
   )
 }
 
+compute_nodeskohonen <- function(df){
+  nodes <- list();
+
+  # add as classes
+  #nodes <- lapply(1:ncol(df), function(x){x})
+
+
+  # kohonen
+  #require(kohonen)
+  #SOM -
+  # Change the data frame with training data to a matrix
+  # Also center and scale all variables to give them equal importance during
+  # the SOM training process.
+  # ??? resolver a normalizacao
+
+
+  data_train_matrix <- as.matrix(df)
+  # Create the SOM Grid - you generally have to specify the size of the
+  # training grid prior to training the SOM. Hexagonal and Circular
+  # topologies are possible
+
+  # computing the number of distinct data points
+  nddp <- nrow(df[!duplicated(df[ , ]), ])
+  nddp <- sqrt(nddp/2)
+
+  som_grid <- somgrid(xdim = nddp, ydim= nddp, topo="rectangular")
+  # Finally, train the SOM, options for the number of iterations,
+  # the learning rates, and the neighbourhood are available
+  som_model <- som(data_train_matrix,
+                   grid=som_grid,
+                   rlen=10000,
+                   alpha=c(0.05,0.01),
+                   keep.data = TRUE)
+
+
+  # Visualising cluster results
+  ## use hierarchical clustering to cluster the codebook vectors
+  som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), (ncol(df)))
+  # plot these results:
+  plot(som_model, type="mapping",  main = "Clusters")
+  add.cluster.boundaries(som_model, som_cluster)
+
+
+  # get vector with cluster value for each original data sample
+  #cluster_assignment <- som_cluster[som_model$unit.classif]
+  # for each of analysis, add the assignment as a column in the original data:
+  #data_train_matrix$cluster <- cluster_assignment
+
+  # add neurons
+  new_nodes <- list();
+  for (x in 1:max(som_model$unit.classif)){
+    print(x)
+    exe_neuron <- data_train_matrix[which(som_model$unit.classif == x),]
+    if (!is.matrix(exe_neuron)){
+      exe_neuron <- t(as.matrix(exe_neuron))
+    }
+    labelidx = which(colSums(exe_neuron) > 0)
+    if (length(labelidx) > 0){
+      new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
+    }
+  }
+
+
+  nodes <- c(nodes, new_nodes )
+
+  new_nodes <- list();
+  for (x in 1:max(som_cluster)){
+    nos_cluster <- which(som_cluster == x)
+    #nos_cluster
+    exe_cluster <- data_train_matrix[which(som_model$unit.classif %in% nos_cluster),]
+    #exe_cluster
+    if (!is.matrix(exe_cluster)){
+      exe_cluster <- t(as.matrix(exe_cluster))
+    }
+    labelidx = which(colSums(exe_cluster) > 0)
+    if (length(labelidx) > 0){
+      new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
+    }
+  }
+  nodes <- c(nodes, new_nodes )
+  nodes
+}
+
+compute_nodeskmeans <- function(df){
+  nodes <- list();
+
+  # add as classes
+  #nodes <- lapply(1:ncol(df), function(x){x})
+
+  data_train_matrix <- as.matrix(df)
+
+  # computing the number of distinct data points
+  nddp <- nrow(df[!duplicated(df[ , ]), ])
+
+
+  km <- kmeans(data_train_matrix, centers = (nddp/2), iter.max = 10000)
+  # #km$cluster
+  # nos_cluster <- which(km$cluster == 3)
+  # nos_cluster
+  # exe_cluster <- data_train_matrix[nos_cluster,]
+  # exe_cluster
+  # colSums(exe_cluster)
+
+
+  # add neurons
+  new_nodes <- list();
+  for (x in 1:max(km$cluster)){
+    print(x)
+    exe_neuron <- data_train_matrix[which(km$cluster == x),]
+    if (!is.matrix(exe_neuron)){
+      exe_neuron <- t(as.matrix(exe_neuron))
+    }
+    labelidx = which(colSums(exe_neuron) > 0)
+    if (length(labelidx) > 0){
+      new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
+    }
+  }
+
+
+  nodes <- c(nodes, new_nodes )
+
+  # new_nodes <- list();
+  # for (x in 1:max(som_cluster)){
+  #   nos_cluster <- which(som_cluster == x)
+  #   #nos_cluster
+  #   exe_cluster <- data_train[which(som_model$unit.classif %in% nos_cluster),]
+  #   #exe_cluster
+  #   if (!is.matrix(exe_cluster)){
+  #     exe_cluster <- t(as.matrix(exe_cluster))
+  #   }
+  #   labelidx = which(colSums(exe_cluster) > 0)
+  #   if (length(labelidx) > 0){
+  #     new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
+  #   }
+  # }
+  # nodes <- c(nodes, new_nodes )
+  nodes
+}
+
+
+
 testeF2Hhmc <- function(){
-  x <- F2H(dsname = "yeast", threads = 4,
+  r <- lapply(1:30, function(x){
+    x <- F2H(dsname = "yeast", threads = 4,
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-           valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep=""))
+           valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+           clusWParam = 0.1, dagMethod="Kohonen")
+    }
   )
   x <- F2H(dsname = "birds", threads = 4,
            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-           valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep=""))
+           valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+           dagMethod="K-means"
   )
 }
 
+# summary(
+# unlist(
+#   lapply(1:length(r), function(x){
+#   rr <- r[[x]]
+#   rr$resultstet2[rr$resultstet2$X == "recall","x"]
+# })
+# )
+# )
+#
+# dsname = "birds"
+# threads = 4
+#
+# train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep=""))
+# test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
+# valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep=""))
+# dagMethod="Kohonen"
 
