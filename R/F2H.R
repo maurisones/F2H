@@ -1209,7 +1209,7 @@ compute_nodeskohonen <- function(df){
 
   # computing the number of distinct data points
   nddp <- nrow(df[!duplicated(df[ , ]), ])
-  nddp <- sqrt(nddp/2)
+  nddp <- sqrt(min(nddp, 1000)/2)
 
   som_grid <- somgrid(xdim = nddp, ydim= nddp, topo="rectangular")
   # Finally, train the SOM, options for the number of iterations,
@@ -1281,7 +1281,7 @@ compute_nodeskmeans <- function(df){
   nddp <- nrow(df[!duplicated(df[ , ]), ])
 
 
-  km <- kmeans(data_train_matrix, centers = (nddp/2), iter.max = 10000)
+  km <- kmeans(data_train_matrix, centers = (min(nddp,1000)/2), iter.max = 10000)
   # #km$cluster
   # nos_cluster <- which(km$cluster == 3)
   # nos_cluster
