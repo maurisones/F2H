@@ -1190,7 +1190,7 @@ compute_nodeskohonen <- function(df){
   nodes <- list();
 
   # add as classes
-  #nodes <- lapply(1:ncol(df), function(x){x})
+  nodes <- lapply(1:ncol(df), function(x){x})
 
 
   # kohonen
@@ -1210,7 +1210,7 @@ compute_nodeskohonen <- function(df){
   # computing the number of distinct data points
   nddp <- nrow(df[!duplicated(df[ , ]), ])
   nddp <- sqrt(min(nddp, 1000)/2)
-
+  print(paste("nnodes som: ", nddp^2, sep=""))
   som_grid <- somgrid(xdim = nddp, ydim= nddp, topo="rectangular")
   # Finally, train the SOM, options for the number of iterations,
   # the learning rates, and the neighbourhood are available
@@ -1223,7 +1223,12 @@ compute_nodeskohonen <- function(df){
 
   # Visualising cluster results
   ## use hierarchical clustering to cluster the codebook vectors
-  som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), (ncol(df)))
+  nclusters <- ncol(df)
+  if (nclusters >= (nddp^2)){
+    nclusters <- nddp
+  }
+  print(paste("nclusters som: ", nclusters, sep=""))
+  som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), nclusters)
   # plot these results:
   plot(som_model, type="mapping",  main = "Clusters")
   add.cluster.boundaries(som_model, som_cluster)
@@ -1342,6 +1347,13 @@ testeF2Hhmc <- function(){
            valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
            dagMethod="K-means"
   )
+  x <- F2H(dsname = "genbase", threads = 4,
+           train_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_train_1",
+           test_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_test_1",
+           valid_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_valid_1",
+           dagMethod="Kohonen"
+  )
+
 }
 
 # summary(
