@@ -1209,7 +1209,7 @@ compute_nodeskohonen <- function(df){
 
   # computing the number of distinct data points
   nddp <- nrow(df[!duplicated(df[ , ]), ])
-  nddp <- sqrt(min(nddp, 1000)/2)
+  nddp <- as.integer(sqrt(min(nddp, 1000)/2))
   print(paste("nnodes som: ", nddp^2, sep=""))
   som_grid <- somgrid(xdim = nddp, ydim= nddp, topo="rectangular")
   # Finally, train the SOM, options for the number of iterations,
@@ -1351,6 +1351,12 @@ testeF2Hhmc <- function(){
            train_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_train_1",
            test_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_test_1",
            valid_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_valid_1",
+           dagMethod="Kohonen"
+  )
+  x <- F2H(dsname = "scene", threads = 4,
+           train_file = "/home/mauri/Downloads/mldatasets/scene/scene_train_1",
+           test_file = "/home/mauri/Downloads/mldatasets/scene/scene_test_1",
+           valid_file = "/home/mauri/Downloads/mldatasets/scene/scene_valid_1",
            dagMethod="Kohonen"
   )
 
