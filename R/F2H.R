@@ -1209,7 +1209,12 @@ compute_nodeskohonen <- function(df){
 
   # computing the number of distinct data points
   nddp <- nrow(df[!duplicated(df[ , ]), ])
+  # nao pode ser maior que 1000
   nddp <- as.integer(sqrt(min(nddp, 1000)/2))
+
+  # nao pode ser menor que 2
+  nddp <- max(nddp, 2)
+
   print(paste("nnodes som: ", nddp^2, sep=""))
   som_grid <- somgrid(xdim = nddp, ydim= nddp, topo="rectangular")
   # Finally, train the SOM, options for the number of iterations,
@@ -1227,6 +1232,8 @@ compute_nodeskohonen <- function(df){
   if (nclusters >= (nddp^2)){
     nclusters <- nddp
   }
+  if (nclusters < 2)
+
   print(paste("nclusters som: ", nclusters, sep=""))
   som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), nclusters)
   # plot these results:
@@ -1353,10 +1360,10 @@ testeF2Hhmc <- function(){
            valid_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_valid_1",
            dagMethod="Kohonen"
   )
-  x <- F2H(dsname = "scene", threads = 4,
-           train_file = "/home/mauri/Downloads/mldatasets/scene/scene_train_1",
-           test_file = "/home/mauri/Downloads/mldatasets/scene/scene_test_1",
-           valid_file = "/home/mauri/Downloads/mldatasets/scene/scene_valid_1",
+  x <- F2H(dsname = "GpositiveGO", threads = 4,
+           train_file = "/home/mauri/Downloads/mldatasets/GpositiveGO/GpositiveGO_train_1",
+           test_file = "/home/mauri/Downloads/mldatasets/GpositiveGO/GpositiveGO_test_1",
+           valid_file = "/home/mauri/Downloads/mldatasets/GpositiveGO/GpositiveGO_valid_1",
            dagMethod="Kohonen"
   )
 
