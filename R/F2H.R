@@ -116,6 +116,103 @@ coveringEdges <- function(X, Y, df, threads = 1){
 }
 
 
+coveringEdges2t <- function(combs){
+
+  ed <- list()
+
+  #combs <- lapply(combs, function(x){
+  #  sort(c(x,0))
+  #})
+
+  for (node in 1:length(combs)){
+    print(node)
+
+    containedidx <- lapply(combs, function(x){
+      length(x) == sum(x %in% combs[[node]]) && length(x) != 0 && !identical(x, combs[[node]])
+    })
+
+    contained <- which(unlist(containedidx) == T)
+    #contained <- which(containedidx == T)
+
+    contained <- contained[order(sapply(combs[contained],length),decreasing=T)]
+
+    if (length(contained) > 0){
+      un <- c()
+      pais <- c()
+      flevel <- length(combs[[node]]) -1
+      for (i in 1:length(contained)){
+        if (length(combs[[contained[i]]]) == flevel){
+          un <- sort(unique(c(un, combs[[contained[i]]])))
+          #print(un)
+          pais <- c(pais, contained[i])
+        } else {
+          if (!identical(combs[[contained[i]]], c(combs[[contained[i]]], un))){
+            un <- sort(unique(c(un, combs[[contained[i]]])))
+            #print(un)
+            pais <- c(pais, contained[i])
+          }
+        }
+
+        if (length(combs[[contained[i]]]) < flevel){
+          if (identical(un, combs[[node]])){
+            break;
+          }
+        }
+      }
+
+      for (p in pais){
+        # find the id in combs
+        ed[[length(ed) + 1]] <- c(p, node)
+      }
+    }
+  }
+
+  return(ed)
+}
+
+coveringEdges2 <- function(combs){
+
+  ed <- list()
+
+  #combs <- lapply(combs, function(x){
+  #  sort(c(x,0))
+  #})
+
+  for (node in 1:length(combs)){
+    print(node)
+
+    containedidx <- lapply(combs, function(x){
+      length(x) == sum(x %in% combs[[node]]) && length(x) != 0 && !identical(x, combs[[node]])
+    })
+
+    contained <- which(unlist(containedidx) == T)
+    #contained <- which(containedidx == T)
+
+    contained <- contained[order(sapply(combs[contained],length),decreasing=T)]
+
+    if (length(contained) > 0){
+      un <- c()
+      pais <- c()
+      for (i in 1:length(contained)){
+        un <- sort(unique(c(un, combs[[contained[i]]])))
+        #print(un)
+        pais <- c(pais, contained[i])
+        if (identical(un, combs[[node]])){
+          break;
+        }
+      }
+
+      for (p in pais){
+        # find the id in combs
+        ed[[length(ed) + 1]] <- c(p, node)
+      }
+    }
+  }
+
+  return(ed)
+}
+
+
 arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast, classstr, inss, combs, root, att_types, threads = 1){
 
   clusters <- parallel::makeCluster(threads)
@@ -688,31 +785,81 @@ F2H <- function(
   }
   times <- tic(times, "Finished PCBO")
 
+  combs <- lapply(combs, as.integer)
 
   inss <- Rpcbo::computeIntents(df, combs, threads = threads)
 
   logger(paste("Found", length(combs), "formal concepts ...", sep=" "))
   times <- tic(times, "Finished extent computing")
 
+  # keep <- which(lengths(combs) < 4)
+  # combs <- combs[keep]
+  # inss <- inss[keep]
 
   # calcula os edges entre os conceitos ####
+  #edges = coveringEdges2(combs)
+
   edges <- coveringEdges(inss, combs, df, threads)
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
 
 
-  # adiciona o no raiz e seus edges quando necessario
-  if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
-    # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
-    filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
-    novo <- length(combs) + 1
-    combs[[novo]] <- as.numeric(NULL)
-    inss[[novo]] <- as.numeric(rownames(df))
+  # # adiciona o no raiz e seus edges quando necessario
+  # if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
+  #   # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
+  #   filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
+  #   novo <- length(combs) + 1
+  #   combs[[novo]] <- as.numeric(NULL)
+  #   inss[[novo]] <- as.numeric(rownames(df))
+  #   for (i in 1:length(filhosr)){
+  #     edges[[length(edges) + 1]] <- c(novo, filhosr[i])
+  #   }
+  # }
+
+  # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
+  filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
+
+  #remove the root from the filhos r
+  filhosr <- filhosr[which(lengths(combs[filhosr]) > 0)]
+
+  # se tiver mais do que 1 nó sem pais tem que adicionar um raiz
+  if (length(filhosr) > 1){
+
+    # verifica se ja tem um no vazio e usa ele, caso nao exista, adiciona um no final
+    if (length(which(lengths(combs) == 0))  == 1){
+      novo <- which(lengths(combs) == 0)
+    } else {
+      novo <- length(combs) + 1
+      combs[[novo]] <- as.numeric(NULL)
+      inss[[novo]] <- as.numeric(rownames(df))
+    }
+
+    # adiciona os edges entre o raiz e os filhos
     for (i in 1:length(filhosr)){
-      edges[[length(edges) + 1]] <- c(novo, filhosr[i])
+      edges[[length(edges) + 1]] <- as.integer(c(novo, filhosr[i]))
     }
   }
+
   times <- tic(times, "Finished adding root")
+
+
+  # no=unlist(lapply(combs, paste, collapse = "-"))
+  # no[which(no == "")] <- "0";
+  # dd <- do.call(rbind.data.frame, edges)
+  # dd <- data.frame(origem=no[dd[,1]], destino=no[dd[,2]])
+  # colnames(dd) <- c("origem", "destino")
+  # grafo1 <- graph_from_data_frame(d = dd, vertices = no, directed = T)
+  # #layout <- layout_with_kk(grafo1)
+  # layout <- layout_as_tree(grafo1, root = c(88))
+  # #layout <- layout_as_tree(grafo1)
+  # #layout[1,2] <- 0
+  #
+  # #layout <- layout_with_sugiyama(grafo1,maxiter = 1000, hgap = 100)
+  #
+  # #plot(grafo1, layout=layout_as_tree(grafo1, root = c(1)), vertex.size=30)
+  # plot(grafo1, layout=layout, vertex.size=15)
+  #
+  #
 
   # encontra o R que contem todos os atributos ou o maior numero de atributos (atributo aqui = instancia)
   r <- which.max(lengths(inss))
@@ -1285,7 +1432,7 @@ compute_nodeskmeans <- function(df){
   nodes <- list();
 
   # add as classes
-  #nodes <- lapply(1:ncol(df), function(x){x})
+  nodes <- lapply(1:ncol(df), function(x){x})
 
   data_train_matrix <- as.matrix(df)
 
@@ -1345,7 +1492,7 @@ testeF2Hhmc <- function(){
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
            valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-           clusWParam = 0.1, dagMethod="Kohonen")
+           clusWParam = 0.05, dagMethod="K-means")
     }
   )
   x <- F2H(dsname = "birds", threads = 4,
@@ -1385,4 +1532,14 @@ testeF2Hhmc <- function(){
 # test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
 # valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep=""))
 # dagMethod="Kohonen"
+# dsdir = tempdir()
+#
+# dsname = "yeast"
+# threads = 4
+# train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep=""))
+# test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep=""))
+# valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep=""))
+# dagMethod="Kohonen"
+# dsdir = tempdir()
+
 
