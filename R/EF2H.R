@@ -54,7 +54,8 @@ EF2H <- function(
     threads = 1,
     threadsf2h = 1,
     ensembleClus = 0,
-    m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA, retPredsConfs = TRUE){
+    m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA, retPredsConfs = TRUE,
+    dagMethod="Rpcbo"){
 
   # reading input files
   times <- c()
@@ -107,7 +108,8 @@ EF2H <- function(
       javaMem = javaMem,
       minSupportConcetps = minSupportConcetps,
       threads = threadsf2h,
-      ensembleClus = 0
+      ensembleClus = 0,
+      dagMethod = dagMethod
     )
     sink()
     retf2h
@@ -204,6 +206,6 @@ testeEF2Hhmc <- function(){
             train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
             valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1
+            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, dagMethod="K-means"
   )
 }
