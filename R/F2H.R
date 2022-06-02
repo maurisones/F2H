@@ -797,9 +797,9 @@ F2H <- function(
   # inss <- inss[keep]
 
   # calcula os edges entre os conceitos ####
-  #edges = coveringEdges2(combs)
+  edges = coveringEdges2(combs)
 
-  edges <- coveringEdges(inss, combs, df, threads)
+  #edges <- coveringEdges(inss, combs, df, threads)
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
 
