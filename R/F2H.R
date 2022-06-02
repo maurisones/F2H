@@ -775,6 +775,7 @@ F2H <- function(
     combs <- compute_nodeskohonen(df)
   } else if (dagMethod == "K-means"){
     combs <- compute_nodeskmeans(df)
+    combs <- combs[!duplicated(combs)]		
   } else if (dagMethod == "Rpcbol2+"){
     combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
     # elimina primeiro nivel
@@ -1010,6 +1011,9 @@ F2H <- function(
     ret$resultstet2 <- read.csv(paste("results", "te", dsname, "F2H", "t2.csv", sep = "-"))
     ret$resultstet3 <- read.csv(paste("results", "te", dsname, "F2H", "t3.csv", sep = "-"))
     ret$predlevelte <- read.csv("predlevel-te.csv")
+    ret$combs <- combs
+    ret$edges <- edges
+    ret$root <- r
 
     #showPredictionLevels()
 
