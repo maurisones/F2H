@@ -775,7 +775,6 @@ F2H <- function(
     combs <- compute_nodeskohonen(df)
   } else if (dagMethod == "K-means"){
     combs <- compute_nodeskmeans(df)
-    combs <- combs[!duplicated(combs)]		
   } else if (dagMethod == "Rpcbol2+"){
     combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
     # elimina primeiro nivel
@@ -787,6 +786,7 @@ F2H <- function(
   times <- tic(times, "Finished PCBO")
 
   combs <- lapply(combs, as.integer)
+  combs <- combs[!duplicated(combs)]
 
   inss <- Rpcbo::computeIntents(df, combs, threads = threads)
 
@@ -797,10 +797,13 @@ F2H <- function(
   # combs <- combs[keep]
   # inss <- inss[keep]
 
-  # calcula os edges entre os conceitos ####
-  edges = coveringEdges2(combs)
-
-  #edges <- coveringEdges(inss, combs, df, threads)
+  # compute edges ####
+  if (dagMethod == "Kohonen" || dagMethod == "K-means"){
+    edges = coveringEdges2(combs)
+  } else {
+    edges <- coveringEdges(inss, combs, df, threads)
+  }
+  
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
 
