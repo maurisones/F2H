@@ -116,103 +116,6 @@ coveringEdges <- function(X, Y, df, threads = 1){
 }
 
 
-coveringEdges2t <- function(combs){
-
-  ed <- list()
-
-  #combs <- lapply(combs, function(x){
-  #  sort(c(x,0))
-  #})
-
-  for (node in 1:length(combs)){
-    print(node)
-
-    containedidx <- lapply(combs, function(x){
-      length(x) == sum(x %in% combs[[node]]) && length(x) != 0 && !identical(x, combs[[node]])
-    })
-
-    contained <- which(unlist(containedidx) == T)
-    #contained <- which(containedidx == T)
-
-    contained <- contained[order(sapply(combs[contained],length),decreasing=T)]
-
-    if (length(contained) > 0){
-      un <- c()
-      pais <- c()
-      flevel <- length(combs[[node]]) -1
-      for (i in 1:length(contained)){
-        if (length(combs[[contained[i]]]) == flevel){
-          un <- sort(unique(c(un, combs[[contained[i]]])))
-          #print(un)
-          pais <- c(pais, contained[i])
-        } else {
-          if (!identical(combs[[contained[i]]], c(combs[[contained[i]]], un))){
-            un <- sort(unique(c(un, combs[[contained[i]]])))
-            #print(un)
-            pais <- c(pais, contained[i])
-          }
-        }
-
-        if (length(combs[[contained[i]]]) < flevel){
-          if (identical(un, combs[[node]])){
-            break;
-          }
-        }
-      }
-
-      for (p in pais){
-        # find the id in combs
-        ed[[length(ed) + 1]] <- c(p, node)
-      }
-    }
-  }
-
-  return(ed)
-}
-
-coveringEdges2 <- function(combs){
-
-  ed <- list()
-
-  #combs <- lapply(combs, function(x){
-  #  sort(c(x,0))
-  #})
-
-  for (node in 1:length(combs)){
-    print(node)
-
-    containedidx <- lapply(combs, function(x){
-      length(x) == sum(x %in% combs[[node]]) && length(x) != 0 && !identical(x, combs[[node]])
-    })
-
-    contained <- which(unlist(containedidx) == T)
-    #contained <- which(containedidx == T)
-
-    contained <- contained[order(sapply(combs[contained],length),decreasing=T)]
-
-    if (length(contained) > 0){
-      un <- c()
-      pais <- c()
-      for (i in 1:length(contained)){
-        un <- sort(unique(c(un, combs[[contained[i]]])))
-        #print(un)
-        pais <- c(pais, contained[i])
-        if (identical(un, combs[[node]])){
-          break;
-        }
-      }
-
-      for (p in pais){
-        # find the id in combs
-        ed[[length(ed) + 1]] <- c(p, node)
-      }
-    }
-  }
-
-  return(ed)
-}
-
-
 arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast, classstr, inss, combs, root, att_types, threads = 1){
 
   clusters <- parallel::makeCluster(threads)
@@ -670,6 +573,10 @@ F2H <- function(
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
   test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
   valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+  # dsname = "yeast",
+  # train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+  # test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+  # valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdir = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -680,10 +587,7 @@ F2H <- function(
   clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
   threads = 1,
   ensembleClus = 0,
-  retPredsConfs = TRUE,
-  dagMethod="Rpcbo",
-  method = "global",
-  run_hsc_path = "run_hsc.pl"){
+  retPredsConfs = TRUE, dagMethod="Rpcbo"){
 
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
@@ -767,72 +671,51 @@ F2H <- function(
   logger("Output file defined", dirf)
   times <- tic(times, "Finished temp directory creation")
 
-  # cria a hierarquia com o algoritmo selecionado
-  if (dagMethod == "Rpcbo"){
-    combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
-  } else if (dagMethod == "Kohonen"){
-    combs <- compute_nodeskohonen(df)
-  } else if (dagMethod == "K-means"){
-    combs <- compute_nodeskmeans(df)
-  } else if (dagMethod == "Rpcbol2+"){
-    combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
-    # elimina primeiro nivel
-    combs <- combs[which(lengths(combs) > 1)]
-  } else {
-    print("Select a method for Dag creation!")
-    return
-  }
+ 
+  combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
+ 
   times <- tic(times, "Finished PCBO")
 
-  combs <- lapply(combs, as.integer)
-  combs <- combs[!duplicated(combs)]
 
   inss <- Rpcbo::computeIntents(df, combs, threads = threads)
 
   logger(paste("Found", length(combs), "formal concepts ...", sep=" "))
   times <- tic(times, "Finished extent computing")
 
-  # keep <- which(lengths(combs) < 4)
-  # combs <- combs[keep]
-  # inss <- inss[keep]
 
-  # compute edges ####
-  if (dagMethod == "Kohonen" || dagMethod == "K-means"){
-    edges = coveringEdges2(combs)
-  } else {
-    edges <- coveringEdges(inss, combs, df, threads)
-  }
-
+  # calcula os edges entre os conceitos ####
+  edges <- coveringEdges(inss, combs, df, threads)
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
 
-  # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
-  filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
+  no=unlist(lapply(combs, paste, collapse = "-"))
+  no[which(no == "")] <- "0";
+  dd <- do.call(rbind.data.frame, edges)
+  dd <- data.frame(origem=no[dd[,1]], destino=no[dd[,2]])
+  colnames(dd) <- c("origem", "destino")
+  grafo1 <- graph_from_data_frame(d = dd, vertices = no, directed = F)
+  layout <- layout_with_kk(grafo1)
+  layout <- layout_as_tree(grafo1, root = c(1))
+  layout[3,2] <- 0
 
-  #remove the root from the filhos r
-  filhosr <- filhosr[which(lengths(combs[filhosr]) > 0)]
+  layout <- layout_with_sugiyama(grafo1,maxiter = 1000, hgap = 100)
 
-  # se tiver mais do que 1 nó sem pais tem que adicionar um raiz
-  if (length(filhosr) > 1){
+  #plot(grafo1, layout=layout_as_tree(grafo1, root = c(1)), vertex.size=30)
+  plot(grafo1, layout=layout, vertex.size=15)
 
-    # verifica se ja tem um no vazio e usa ele, caso nao exista, adiciona um no final
-    if (length(which(lengths(combs) == 0))  == 1){
-      novo <- which(lengths(combs) == 0)
-    } else {
-      novo <- length(combs) + 1
-      combs[[novo]] <- as.numeric(NULL)
-      inss[[novo]] <- as.numeric(rownames(df))
-    }
 
-    # adiciona os edges entre o raiz e os filhos
+  # adiciona o no raiz e seus edges quando necessario
+  if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
+    # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
+    filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
+    novo <- length(combs) + 1
+    combs[[novo]] <- as.numeric(NULL)
+    inss[[novo]] <- as.numeric(rownames(df))
     for (i in 1:length(filhosr)){
-      edges[[length(edges) + 1]] <- as.integer(c(novo, filhosr[i]))
+      edges[[length(edges) + 1]] <- c(novo, filhosr[i])
     }
   }
-
   times <- tic(times, "Finished adding root")
-
-
 
   # encontra o R que contem todos os atributos ou o maior numero de atributos (atributo aqui = instancia)
   r <- which.max(lengths(inss))
@@ -879,15 +762,10 @@ F2H <- function(
   print(clusTefile)
 
   # executar Clus ####
-  if (method == "global"){
-    if (ensembleClus == 0){
-      cmd <- paste(clusExe, " ", dsname,  sep= "")
-    } else {
-      cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
-    }
+  if (ensembleClus == 0){
+    cmd <- paste(clusExe, " ", dsname,  sep= "")
   } else {
-    system(paste("cp ", run_hsc_path, ".", sep=" "))
-    cmd <- paste("perl run_hsc.pl ", dsname,  sep= "")
+    cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
   }
   print(cmd)
   clusout <- system(cmd, intern = TRUE)
@@ -898,13 +776,8 @@ F2H <- function(
 
   # obtem os resultados  do Clus####
   logger("Starting reading arff results from Clus")
-  if (method == "global"){
-    predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
-    predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
-  } else {
-    predarfftr <- readArffR(paste(dsname, ".hsc.combined.train.1.pred.arff", sep = ""))
-    predarffte <- readArffR(paste(dsname, ".hsc.combined.test.pred.arff", sep = ""))
-  }
+  predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
+  predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
   logger("Finished reading arff results from Clus")
 
 
@@ -993,9 +866,6 @@ F2H <- function(
     ret$resultstet2 <- read.csv(paste("results", "te", dsname, "F2H", "t2.csv", sep = "-"))
     ret$resultstet3 <- read.csv(paste("results", "te", dsname, "F2H", "t3.csv", sep = "-"))
     ret$predlevelte <- read.csv("predlevel-te.csv")
-    ret$combs <- combs
-    ret$edges <- edges
-    ret$root <- r
 
     #showPredictionLevels()
 
@@ -1003,7 +873,6 @@ F2H <- function(
   return(ret)
 }
 
-# to remove
 F2Hhsc <- function(
   dsname = "birds",
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
@@ -1310,156 +1179,14 @@ F2Hhsc <- function(
   return(ret)
 }
 
-
-compute_nodeskohonen <- function(df){
-  nodes <- list();
-
-  # add as classes
-  nodes <- lapply(1:ncol(df), function(x){x})
-
-
-  # kohonen
-  #require(kohonen)
-  #SOM -
-  # Change the data frame with training data to a matrix
-  # Also center and scale all variables to give them equal importance during
-  # the SOM training process.
-  # ??? resolver a normalizacao
-
-
-  data_train_matrix <- as.matrix(df)
-  # Create the SOM Grid - you generally have to specify the size of the
-  # training grid prior to training the SOM. Hexagonal and Circular
-  # topologies are possible
-
-  # computing the number of distinct data points
-  nddp <- nrow(df[!duplicated(df[ , ]), ])
-  # nao pode ser maior que 1000
-  nddp <- as.integer(sqrt(min(nddp, 1000)/2))
-
-  # nao pode ser menor que 2
-  nddp <- max(nddp, 2)
-
-  print(paste("nnodes som: ", nddp^2, sep=""))
-  som_grid <- somgrid(xdim = nddp, ydim= nddp, topo="rectangular")
-  # Finally, train the SOM, options for the number of iterations,
-  # the learning rates, and the neighbourhood are available
-  som_model <- som(data_train_matrix,
-                   grid=som_grid,
-                   rlen=10000,
-                   alpha=c(0.05,0.01),
-                   keep.data = TRUE)
-
-
-  # Visualising cluster results
-  ## use hierarchical clustering to cluster the codebook vectors
-  nclusters <- ncol(df)
-  if (nclusters >= (nddp^2)){
-    nclusters <- nddp
-  }
-  if (nclusters < 2)
-
-  print(paste("nclusters som: ", nclusters, sep=""))
-  som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), nclusters)
-  # plot these results:
-  plot(som_model, type="mapping",  main = "Clusters")
-  add.cluster.boundaries(som_model, som_cluster)
-
-
-  # get vector with cluster value for each original data sample
-  #cluster_assignment <- som_cluster[som_model$unit.classif]
-  # for each of analysis, add the assignment as a column in the original data:
-  #data_train_matrix$cluster <- cluster_assignment
-
-  # add neurons
-  new_nodes <- list();
-  for (x in 1:max(som_model$unit.classif)){
-    print(x)
-    exe_neuron <- data_train_matrix[which(som_model$unit.classif == x),]
-    if (!is.matrix(exe_neuron)){
-      exe_neuron <- t(as.matrix(exe_neuron))
-    }
-    labelidx = which(colSums(exe_neuron) > 0)
-    if (length(labelidx) > 0){
-      new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
-    }
-  }
-
-
-  nodes <- c(nodes, new_nodes )
-
-  new_nodes <- list();
-  for (x in 1:max(som_cluster)){
-    nos_cluster <- which(som_cluster == x)
-    #nos_cluster
-    exe_cluster <- data_train_matrix[which(som_model$unit.classif %in% nos_cluster),]
-    #exe_cluster
-    if (!is.matrix(exe_cluster)){
-      exe_cluster <- t(as.matrix(exe_cluster))
-    }
-    labelidx = which(colSums(exe_cluster) > 0)
-    if (length(labelidx) > 0){
-      new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
-    }
-  }
-  nodes <- c(nodes, new_nodes )
-  nodes
-}
-
-compute_nodeskmeans <- function(df){
-  nodes <- list();
-
-  # add as classes
-  nodes <- lapply(1:ncol(df), function(x){x})
-
-  data_train_matrix <- as.matrix(df)
-
-  # computing the number of distinct data points
-  nddp <- nrow(df[!duplicated(df[ , ]), ])
-
-
-  km <- kmeans(data_train_matrix, centers = (min(nddp,1000)/2), iter.max = 10000)
-  # #km$cluster
-  # nos_cluster <- which(km$cluster == 3)
-  # nos_cluster
-  # exe_cluster <- data_train_matrix[nos_cluster,]
-  # exe_cluster
-  # colSums(exe_cluster)
-
-
-  # add neurons
-  new_nodes <- list();
-  for (x in 1:max(km$cluster)){
-    print(x)
-    exe_neuron <- data_train_matrix[which(km$cluster == x),]
-    if (!is.matrix(exe_neuron)){
-      exe_neuron <- t(as.matrix(exe_neuron))
-    }
-    labelidx = which(colSums(exe_neuron) > 0)
-    if (length(labelidx) > 0){
-      new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
-    }
-  }
-
-
-  nodes <- c(nodes, new_nodes )
-
-  # new_nodes <- list();
-  # for (x in 1:max(som_cluster)){
-  #   nos_cluster <- which(som_cluster == x)
-  #   #nos_cluster
-  #   exe_cluster <- data_train[which(som_model$unit.classif %in% nos_cluster),]
-  #   #exe_cluster
-  #   if (!is.matrix(exe_cluster)){
-  #     exe_cluster <- t(as.matrix(exe_cluster))
-  #   }
-  #   labelidx = which(colSums(exe_cluster) > 0)
-  #   if (length(labelidx) > 0){
-  #     new_nodes[[length(new_nodes) + 1]] <- as.numeric(labelidx)
-  #   }
-  # }
-  # nodes <- c(nodes, new_nodes )
-  nodes
+testeF2Hhsc <- function(){
+  x <- F2Hhsc(dsname = "yeast",
+              train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+              valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+              dsdir = "/home/mauri/temp",
+              run_hsc_path = "/home/mauri/Downloads/Clus_hscok/Clus/run_hsc.pl"
+  )
 }
 
 
@@ -1470,42 +1197,15 @@ testeF2Hhmc <- function(){
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
            valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-           clusWParam = 0.8, dagMethod="K-means")
+           clusWParam = 0.1, dagMethod="Kohonen")
     }
   )
-  list.save(x, paste("/home/mauri/Downloads/yeast-F2HhmcKm" ,".rds", sep=""))
-
   x <- F2H(dsname = "birds", threads = 4,
            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
            valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
            dagMethod="K-means"
   )
-
-  list.save(x, "/home/mauri/Downloads/birds-F2HhmcKm.rds")
-  x <- F2H(dsname = "genbase", threads = 4,
-           train_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_train_1",
-           test_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_test_1",
-           valid_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_valid_1",
-           dagMethod="Kohonen"
-  )
-  x <- F2H(dsname = "GpositiveGO", threads = 4,
-           train_file = "/home/mauri/Downloads/mldatasets/GpositiveGO/GpositiveGO_train_1",
-           test_file = "/home/mauri/Downloads/mldatasets/GpositiveGO/GpositiveGO_test_1",
-           valid_file = "/home/mauri/Downloads/mldatasets/GpositiveGO/GpositiveGO_valid_1",
-           dagMethod="Kohonen"
-  )
-
-}
-
-testeF2Hhsc <- function(){
-  x <- F2H(dsname = "yeast",
-              train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-              valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-              dsdir = "/home/mauri/Downloads/temp",
-              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl",
-              method = "local")
 }
 
 # summary(
@@ -1517,21 +1217,3 @@ testeF2Hhsc <- function(){
 # )
 # )
 #
-# dsname = "birds"
-# threads = 4
-#
-# train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep=""))
-# test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
-# valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep=""))
-# dagMethod="Kohonen"
-# dsdir = tempdir()
-#
-# dsname = "yeast"
-# threads = 4
-# train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep=""))
-# test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep=""))
-# valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep=""))
-# dagMethod="Kohonen"
-# dsdir = tempdir()
-
-
