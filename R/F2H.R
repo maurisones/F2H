@@ -670,10 +670,6 @@ F2H <- function(
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
   test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
   valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-  # dsname = "yeast",
-  # train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-  # test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-  # valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdir = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -684,7 +680,10 @@ F2H <- function(
   clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
   threads = 1,
   ensembleClus = 0,
-  retPredsConfs = TRUE, dagMethod="Rpcbo"){
+  retPredsConfs = TRUE,
+  dagMethod="Rpcbo",
+  method = "global",
+  run_hsc_path = "run_hsc.pl"){
 
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
@@ -803,22 +802,9 @@ F2H <- function(
   } else {
     edges <- coveringEdges(inss, combs, df, threads)
   }
-  
+
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
-
-
-  # # adiciona o no raiz e seus edges quando necessario
-  # if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
-  #   # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
-  #   filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
-  #   novo <- length(combs) + 1
-  #   combs[[novo]] <- as.numeric(NULL)
-  #   inss[[novo]] <- as.numeric(rownames(df))
-  #   for (i in 1:length(filhosr)){
-  #     edges[[length(edges) + 1]] <- c(novo, filhosr[i])
-  #   }
-  # }
 
   # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
   filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
@@ -847,23 +833,6 @@ F2H <- function(
   times <- tic(times, "Finished adding root")
 
 
-  # no=unlist(lapply(combs, paste, collapse = "-"))
-  # no[which(no == "")] <- "0";
-  # dd <- do.call(rbind.data.frame, edges)
-  # dd <- data.frame(origem=no[dd[,1]], destino=no[dd[,2]])
-  # colnames(dd) <- c("origem", "destino")
-  # grafo1 <- graph_from_data_frame(d = dd, vertices = no, directed = T)
-  # #layout <- layout_with_kk(grafo1)
-  # layout <- layout_as_tree(grafo1, root = c(88))
-  # #layout <- layout_as_tree(grafo1)
-  # #layout[1,2] <- 0
-  #
-  # #layout <- layout_with_sugiyama(grafo1,maxiter = 1000, hgap = 100)
-  #
-  # #plot(grafo1, layout=layout_as_tree(grafo1, root = c(1)), vertex.size=30)
-  # plot(grafo1, layout=layout, vertex.size=15)
-  #
-  #
 
   # encontra o R que contem todos os atributos ou o maior numero de atributos (atributo aqui = instancia)
   r <- which.max(lengths(inss))
@@ -910,10 +879,15 @@ F2H <- function(
   print(clusTefile)
 
   # executar Clus ####
-  if (ensembleClus == 0){
-    cmd <- paste(clusExe, " ", dsname,  sep= "")
+  if (method == "global"){
+    if (ensembleClus == 0){
+      cmd <- paste(clusExe, " ", dsname,  sep= "")
+    } else {
+      cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
+    }
   } else {
-    cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
+    system(paste("cp ", run_hsc_path, ".", sep=" "))
+    cmd <- paste("perl run_hsc.pl ", dsname,  sep= "")
   }
   print(cmd)
   clusout <- system(cmd, intern = TRUE)
@@ -924,8 +898,13 @@ F2H <- function(
 
   # obtem os resultados  do Clus####
   logger("Starting reading arff results from Clus")
-  predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
-  predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
+  if (method == "global"){
+    predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
+    predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
+  } else {
+    predarfftr <- readArffR(paste(dsname, ".hsc.combined.train.1.pred.arff", sep = ""))
+    predarffte <- readArffR(paste(dsname, ".hsc.combined.test.pred.arff", sep = ""))
+  }
   logger("Finished reading arff results from Clus")
 
 
@@ -1024,6 +1003,7 @@ F2H <- function(
   return(ret)
 }
 
+# to remove
 F2Hhsc <- function(
   dsname = "birds",
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
@@ -1330,15 +1310,6 @@ F2Hhsc <- function(
   return(ret)
 }
 
-testeF2Hhsc <- function(){
-  x <- F2Hhsc(dsname = "yeast",
-              train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-              valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-              dsdir = "/home/mauri/temp",
-              run_hsc_path = "/home/mauri/Downloads/Clus_hscok/Clus/run_hsc.pl"
-  )
-}
 
 compute_nodeskohonen <- function(df){
   nodes <- list();
@@ -1499,15 +1470,19 @@ testeF2Hhmc <- function(){
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
            valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-           clusWParam = 0.05, dagMethod="K-means")
+           clusWParam = 0.8, dagMethod="K-means")
     }
   )
+  list.save(x, paste("/home/mauri/Downloads/yeast-F2HhmcKm" ,".rds", sep=""))
+
   x <- F2H(dsname = "birds", threads = 4,
            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
            valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
            dagMethod="K-means"
   )
+
+  list.save(x, "/home/mauri/Downloads/birds-F2HhmcKm.rds")
   x <- F2H(dsname = "genbase", threads = 4,
            train_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_train_1",
            test_file = "/home/mauri/Downloads/mldatasets/genbase/genbase_test_1",
@@ -1521,6 +1496,16 @@ testeF2Hhmc <- function(){
            dagMethod="Kohonen"
   )
 
+}
+
+testeF2Hhsc <- function(){
+  x <- F2H(dsname = "yeast",
+              train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+              valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
+              dsdir = "/home/mauri/Downloads/temp",
+              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl",
+              method = "local")
 }
 
 # summary(
