@@ -55,7 +55,9 @@ EF2H <- function(
     threadsf2h = 1,
     ensembleClus = 0,
     m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA, retPredsConfs = TRUE,
-    dagMethod="Rpcbo"){
+    dagMethod="Rpcbo",
+    method = "global",
+    run_hsc_path = "run_hsc.pl"){
 
   # reading input files
   times <- c()
@@ -109,7 +111,9 @@ EF2H <- function(
       minSupportConcetps = minSupportConcetps,
       threads = threadsf2h,
       ensembleClus = 0,
-      dagMethod = dagMethod
+      dagMethod = dagMethod,
+      method = method,
+      run_hsc_path = run_hsc_path
     )
     sink()
     retf2h
@@ -207,5 +211,13 @@ testeEF2Hhmc <- function(){
             test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
             valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
             threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, dagMethod="K-means"
+  )
+  x <- EF2H(dsname = "birds", threads = 2,
+            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+            valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
+            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, dagMethod="K-means",
+            method = "local",
+            run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
   )
 }
