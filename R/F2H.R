@@ -688,20 +688,20 @@ F2H <- function(
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
 
-  no=unlist(lapply(combs, paste, collapse = "-"))
-  no[which(no == "")] <- "0";
-  dd <- do.call(rbind.data.frame, edges)
-  dd <- data.frame(origem=no[dd[,1]], destino=no[dd[,2]])
-  colnames(dd) <- c("origem", "destino")
-  grafo1 <- graph_from_data_frame(d = dd, vertices = no, directed = F)
-  layout <- layout_with_kk(grafo1)
-  layout <- layout_as_tree(grafo1, root = c(1))
-  layout[3,2] <- 0
+  #no=unlist(lapply(combs, paste, collapse = "-"))
+  #no[which(no == "")] <- "0";
+  #dd <- do.call(rbind.data.frame, edges)
+  #dd <- data.frame(origem=no[dd[,1]], destino=no[dd[,2]])
+  #colnames(dd) <- c("origem", "destino")
+  #grafo1 <- graph_from_data_frame(d = dd, vertices = no, directed = F)
+  #layout <- layout_with_kk(grafo1)
+  #layout <- layout_as_tree(grafo1, root = c(1))
+  #layout[3,2] <- 0
 
-  layout <- layout_with_sugiyama(grafo1,maxiter = 1000, hgap = 100)
+  #layout <- layout_with_sugiyama(grafo1,maxiter = 1000, hgap = 100)
 
   #plot(grafo1, layout=layout_as_tree(grafo1, root = c(1)), vertex.size=30)
-  plot(grafo1, layout=layout, vertex.size=15)
+  #plot(grafo1, layout=layout, vertex.size=15)
 
 
   # adiciona o no raiz e seus edges quando necessario
