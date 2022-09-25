@@ -1470,7 +1470,7 @@ testeF2Hhmc <- function(){
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
            valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-           clusWParam = 0.8, dagMethod="K-means")
+           clusWParam = 0.8, dagMethod="Rpcbo")
     }
   )
   list.save(x, paste("/home/mauri/Downloads/yeast-F2HhmcKm" ,".rds", sep=""))
