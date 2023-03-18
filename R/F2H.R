@@ -384,7 +384,8 @@ compute_results_t2 <- function(id, fileid, dsname){
   # calibrating the threshold
   #rv lcard <- (sum(truetr) + sum(trueva))/(nrow(truetr) + nrow(trueva))
   lcard <- sum(truetr)/nrow(truetr)
-  t <- seq(0.01,0.99, 0.01)
+  #t <- seq(0.01,0.99, 0.01)
+  t <- sort(unique(unlist(c(read.csv(paste("pred-", id, ".csv", sep=""))))))
   bt <- 0
   bts <- 1
   for (i in 1:length(t)){
@@ -737,10 +738,10 @@ F2H <- function(
     ret$truetr <- read.csv("true-tr.csv")
     ret$predte0 <- read.csv("pred-te-t0.csv")
     ret$predte2 <- read.csv("pred-te-t2.csv")
-    ret$predte3 <- read.csv("pred-te-t2a.csv")
+    ret$predte2a <- read.csv("pred-te-t2a.csv")
     ret$predtr0 <- read.csv("pred-tr-t0.csv")
     ret$predtr2 <- read.csv("pred-tr-t2.csv")
-    ret$predtr3 <- read.csv("pred-tr-t2a.csv")
+    ret$predtr2a <- read.csv("pred-tr-t2a.csv")
     ret$resultstet0 <- read.csv(paste("results", "te", dsname, "F2H", "t0.csv", sep = "-"))
     ret$resultstet2 <- read.csv(paste("results", "te", dsname, "F2H", "t2.csv", sep = "-"))
     ret$resultstet2a <- read.csv(paste("results", "te", dsname, "F2H", "t2a.csv", sep = "-"))
