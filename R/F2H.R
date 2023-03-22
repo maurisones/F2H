@@ -742,9 +742,9 @@ F2H <- function(
     ret$predtr0 <- read.csv("pred-tr-t0.csv")
     ret$predtr2 <- read.csv("pred-tr-t2.csv")
     ret$predtr2a <- read.csv("pred-tr-t2a.csv")
-    ret$resultstet0 <- read.csv(paste("results", "te", dsname, "F2H", "t0.csv", sep = "-"))
-    ret$resultstet2 <- read.csv(paste("results", "te", dsname, "F2H", "t2.csv", sep = "-"))
-    ret$resultstet2a <- read.csv(paste("results", "te", dsname, "F2H", "t2a.csv", sep = "-"))
+    ret$resultstet0 <- read.csv(paste("results", "te", dsname, fileid, "t0.csv", sep = "-"))
+    ret$resultstet2 <- read.csv(paste("results", "te", dsname, fileid, "t2.csv", sep = "-"))
+    ret$resultstet2a <- read.csv(paste("results", "te", dsname, fileid, "t2a.csv", sep = "-"))
     ret$predlevelte <- read.csv("predlevel-te.csv")
 
     #showPredictionLevels()
@@ -766,18 +766,27 @@ testeF2Hhsc <- function(){
               test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
               run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
   )
+
 }
 
 testeF2Hhmc <- function(){
     x <- F2H(dsname = "yeast", threads = 4, HierApproach = "global",
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+           ensembleClus = 1
            )
 
-    y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
+   y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
-  )
+        )
+
+   y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
+            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+            ensembleClus = 1
+   )
+
 
 }
 

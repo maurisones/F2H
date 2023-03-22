@@ -2,18 +2,18 @@
 majority_voting_bp <- function(f2hout, mdatat, m, dsname){
 
   sumbpt0 <- f2hout[[1]]$predte0
-  sumbpt2 <- f2hout[[1]]$predte2
+  ##sumbpt2 <- f2hout[[1]]$predte2
   sumbpt2a <- f2hout[[1]]$predte2a
   for(iteration in seq(2:m)){
     sumbpt0 = sumbpt0 + f2hout[[iteration]]$predte0
-    sumbpt2 = sumbpt2 + f2hout[[iteration]]$predte2
+    #sumbpt2 = sumbpt2 + f2hout[[iteration]]$predte2
     sumbpt2a = sumbpt2a + f2hout[[iteration]]$predte2a
   }
 
   sumbpt0[sumbpt0 < ceiling(m/2)] <- 0
   sumbpt0[sumbpt0 >= ceiling(m/2)] <- 1
-  sumbpt2[sumbpt2 < ceiling(m/2)] <- 0
-  sumbpt2[sumbpt2 >= ceiling(m/2)] <- 1
+  #sumbpt2[sumbpt2 < ceiling(m/2)] <- 0
+  #sumbpt2[sumbpt2 >= ceiling(m/2)] <- 1
   sumbpt2a[sumbpt2a < ceiling(m/2)] <- 0
   sumbpt2a[sumbpt2a >= ceiling(m/2)] <- 1
 
@@ -23,9 +23,9 @@ majority_voting_bp <- function(f2hout, mdatat, m, dsname){
   showResults(result, "teb", "EF2H",  dsname, "t0")
 
 
-  write.csv(sumbpt2, paste("pred-", "teb", "-t2.csv",sep = ""), row.names = FALSE)
-  result <- multilabel_evaluate(mdatat, sumbpt2)
-  showResults(result, "teb", "EF2H",  dsname, "t2")
+  #write.csv(sumbpt2, paste("pred-", "teb", "-t2.csv",sep = ""), row.names = FALSE)
+  #result <- multilabel_evaluate(mdatat, sumbpt2)
+  #showResults(result, "teb", "EF2H",  dsname, "t2")
 
   write.csv(sumbpt2a, paste("pred-", "teb", "-t2a.csv",sep = ""), row.names = FALSE)
   result <- multilabel_evaluate(mdatat, sumbpt2a)
@@ -84,8 +84,8 @@ EF2H <- function(
   clusters <- parallel::makeCluster(threads)
   doParallel::registerDoParallel(clusters)
 
-  f2hout <- foreach (iteration = 1:m) %dopar%{
-    #for(iteration in seq(1:m)){
+  f2hout <- foreach (iteration = 1:m ) %dopar%{
+
     print(iteration)
     setwd(dsdire)
     ndata <- create_subset(mdata, idx[[iteration]]$rows, idx[[iteration]]$cols)
@@ -104,11 +104,12 @@ EF2H <- function(
       javaMem = javaMem,
       minSupportConcetps = minSupportConcetps,
       threads = threadsf2h,
-      ensembleClus = 0
+      ensembleClus = ensembleClus
     )
     sink()
     retf2h
   }
+
   parallel::stopCluster(clusters)
 
   # reading the test and validation files
@@ -153,8 +154,8 @@ EF2H <- function(
     ret = list();
     ret$truetr <- read.csv("true-tr.csv");
     ret$truete <- read.csv("true-tep.csv");
-    ret$predtebt2 <- read.csv("pred-teb-t2.csv");
-    ret$resultstebt2 <- read.csv(paste("results", "teb", dsname, "EF2H", "t2.csv", sep = "-"));
+    #ret$predtebt2 <- read.csv("pred-teb-t2.csv");
+    #ret$resultstebt2 <- read.csv(paste("results", "teb", dsname, "EF2H", "t2.csv", sep = "-"));
     ret$predtebt2a <- read.csv("pred-teb-t2a.csv");
     ret$resultstebt2a <- read.csv(paste("results", "teb", dsname, "EF2H", "t2a.csv", sep = "-"));
 
@@ -190,6 +191,6 @@ testeEF2Hhmc <- function(){
   x <- EF2H(dsname = "birds", threads = 10,
             train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1
+            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, ensembleClus = 1
   )
 }
