@@ -26,6 +26,15 @@ findClusJar <- function(){
   return(NULL)
 }
 
+findClusHSCPerl <- function(){
+  pathclus <- file.path(paste(findF2HLibPath(), "/hsc/run_hsc.pl", sep=""))
+  if (file.exists(pathclus)){
+    return(pathclus)
+  }
+
+  # TODO: message
+  return(NULL)
+}
 
 
 logger <- function(a, b=NULL, c=NULL, d=NULL, e=NULL, f=NULL){
@@ -514,8 +523,7 @@ F2H <- function(
   threads = 1,
   ensembleClus = 0,
   retPredsConfs = TRUE,
-  HierApproach = "global",
-  run_hsc_path = ""  ){
+  HierApproach = "global"){
 
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
@@ -667,9 +675,9 @@ F2H <- function(
     predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
     logger("Finished reading arff results from Clus")
   } else {
-    system(paste("cp ", run_hsc_path, ".", sep=" "))
+    system(paste("cp ", findClusHSCPerl(), ".", sep=" "))
 
-    cmd <- paste("perl run_hsc.pl ", dsname,  sep= "")
+    cmd <- paste("perl run_hsc.pl ", dsname,  " ", strsplit(clusJar, "MyClus")[[1]][1], sep= "")
     print(cmd)
     clusout <- system(cmd, intern = TRUE)
 
@@ -765,6 +773,11 @@ testeF2Hhsc <- function(){
               train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
               test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
               run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+  )
+
+  y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
+           train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+           test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
   )
 
 }
