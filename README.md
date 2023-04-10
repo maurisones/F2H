@@ -106,18 +106,15 @@ The following parameters are allowed:
 
 -   **javaExe**: the full path to the JVM. F2H uses the [Clus Framework](https://dtai.cs.kuleuven.be/clus/) to create the hierarchical classification model and it is provided as a Java implementation
 
-    -   *default value* javaExe = "java",
+    -   *default value* javaExe = "java"
 
-```{=html}
-<!-- -->
-```
 -   **javaMem**: how much memory will be available to the JVM in the classification process
 
-    -   *default value* javaMem = "-Xmx3g",
+    -   *default value* javaMem = "-Xmx3g"
 
 -   **clusJar:** full path to the Clus jar file. The F2H package already provides the clus.jar file obtained from the site of [Clus Framework](https://dtai.cs.kuleuven.be/clus/), use this parameter if you want to provide an alternate or customized clus.jar file
 
-    -   *default value* clusJar = findClusJar(),
+    -   *default value* clusJar = findClusJar()
 
 -   **minSupportConcetps**: the minimum number of instances each FCL must contains represented as an integer value. With minSupportConcetps = 0 all FCLs are used. For more information, check the parameter *Smin-support* at [PCBO website](https://fcalgs.sourceforge.net/pcbo-amai.html)
 
