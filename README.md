@@ -88,9 +88,6 @@ The following parameters are allowed:
 
     -   *default value* train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep=""))
 
-```{=html}
-<!-- -->
-```
 -   **test_file**: The full path to the arff file containing the test instances (the multi-label arff file must have a additional XML file with the metadata):
 
     -   *default value* test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
@@ -198,5 +195,3 @@ result <- F2H(
 -   F2H with local approach is slower but achieves best results;
 
 -   To run F2H with datasets with \|Labels\| \> 20 we recommend the use of the minSupportConcetps = 10 or bigger.
-
-[@C50]
