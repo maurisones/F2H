@@ -58,7 +58,7 @@ library("F2H")
 result <- F2H()
 ```
 
-The output process will provide you a lot of information about the classification process. The *result* variable will give you access to some data from the classification process, the 4 most important are:
+The output process will provide a lot of information about the classification process. The *result* variable will give access to some data from the classification process, the 4 most important are:
 
 ```{r setup, include=FALSE}
 
@@ -80,7 +80,7 @@ result$predte2a
 
 The following parameters are allowed:
 
--   **dsname**: A simple string to identify de model. This string is used in temporary files and data structures:
+-   **dsname**: A string to identify de model. This string is used in temporary files and data structures:
 
     -   *default* value dsname = "birds"
 
@@ -185,13 +185,13 @@ result <- F2H(
 
 -   The local version of F2H requires the standard perl installed in the system;
 
--   The implementations doesn't allow to create a model the model and use the same model twice, that is a consequence of a problem with the Clus Framework that generate some errors in the model saving process. This limitation makes imperative always to call the F2H() function with the training and test sets, doesn't allowing to make predictions using the same model to a second set of testing instances. We are working on this issue;
+-   The implementations doesn't allow to create a model and use the same model twice, that is a consequence of a problem with the Clus Framework that generates some errors in the model saving process. This limitation makes imperative always to call the F2H() function with the training and test sets, doesn't allowing to make predictions using the same model to a second set of testing instances. We are working on this issue;
 
 -   F2H with global approach is faster;
 
 -   F2H with local approach is slower but achieves best results;
 
--   To run F2H with datasets with \|Labels\| \> 20 we recommend the use of the minSupportConcetps = 10 or bigger.
+-   To run F2H with datasets with \|Labels\| \> 20 we recommend the use of the minSupportConcetps = 10 or greater.
 
 ## How to cite?
 ```
