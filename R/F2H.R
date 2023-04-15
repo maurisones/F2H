@@ -1,5 +1,5 @@
 .onAttach <- function(libname, pkgname) {
-  options(java.parameters = "-Xmx2g")
+  #options(java.parameters = "-Xmx2g")
 }
 
 
@@ -26,6 +26,15 @@ findClusJar <- function(){
   return(NULL)
 }
 
+findClusHSCPerl <- function(){
+  pathclus <- file.path(paste(findF2HLibPath(), "/hsc/run_hsc.pl", sep=""))
+  if (file.exists(pathclus)){
+    return(pathclus)
+  }
+
+  # TODO: message
+  return(NULL)
+}
 
 
 logger <- function(a, b=NULL, c=NULL, d=NULL, e=NULL, f=NULL){
@@ -55,7 +64,7 @@ tac <- function(times){
 }
 
 
-
+# TODO: reference
 mlinha <- function(m, df){
   if (length(m) == 0){
     return(c())
@@ -68,6 +77,7 @@ mlinha <- function(m, df){
   return(ret)
 }
 
+# TODO: reference
 coveringEdges <- function(X, Y, df, threads = 1){
 
   clusters <- parallel::makeCluster(threads)
@@ -116,7 +126,7 @@ coveringEdges <- function(X, Y, df, threads = 1){
 }
 
 
-arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast, classstr, inss, combs, root, att_types, threads = 1){
+arffH_par <- function(dir, fileArffH, arff, arfft, labelFirst, labelLast, classstr, inss, combs, root, att_types, threads = 1){
 
   clusters <- parallel::makeCluster(threads)
   doParallel::registerDoParallel(clusters)
@@ -143,8 +153,6 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
   linesToWrite <- c(linesToWrite, "@Data")
 
   linesToWriteT <- linesToWrite
-  #linesToWriteV <- linesToWrite
-
 
   str <- foreach (i = 1:nrow(arff)) %dopar%{
 
@@ -198,16 +206,15 @@ arffH_par <- function(dir, fileArffH, arff, arfft, arffv, labelFirst, labelLast,
 
 }
 
-
-
-geraConfClusHMC<- function(sfilename, trainfile, testfile, validfile, WType, WParam, OptimizeErrorMeasure){
+geraConfClusHMC<- function(sfilename, trainfile, testfile, WType, WParam, OptimizeErrorMeasure){
 
   s <- "[Data]
 File = XXX1
 TestSet = XXX2
 
 %using the valid dataset achieved low performance
-%PruneSet = XXX6
+%we choose do not use validation file for clus in F2H
+%PruneSet =
 
 [Hierarchical]
 Type = DAG
@@ -242,7 +249,6 @@ WritePredictions = {Train, Test}"
   s <- gsub("XXX3", WType, s)
   s <- gsub("XXX4", WParam, s)
   s <- gsub("XXX5", OptimizeErrorMeasure, s)
-  s <- gsub("XXX6", validfile, s)
 
   fileConn<-file(sfilename)
   writeLines(s, fileConn)
@@ -281,12 +287,6 @@ measureHtoFlat <- function(predarff, combs, truem_colnames){
 }
 
 
-
-range01 <- function(x){
-  (x-min(x))/(max(x)-min(x))
-}
-
-
 compute_predictions_prob <- function(truemte, predarff, combs, id){
 
   original <- data.frame(truemte)
@@ -295,12 +295,9 @@ compute_predictions_prob <- function(truemte, predarff, combs, id){
   mymldr <- mldr_from_dataframe(original, labelIndices = seq(1,ncol(truemte)), name = "original")
 
   # obtem as probabilidades das predicoes
-  #TODO define a globa var to store times
-  #times <- tic(times, paste("Starting matrix thresholds H->Flat on data ", id, sep = ""))
   mhtoflat <- measureHtoFlat(predarff, combs, colnames(truemte))
   predmte <- mhtoflat$predm
   predmtec <- mhtoflat$predc
-  #times <- tic(times, paste("Finished matrix thresholds H->Flat on data ", id, sep = ""))
 
   write.csv(truemte, paste("true-", id, ".csv", sep = ""), row.names = FALSE)
   write.csv(predmte, paste("pred-", id, ".csv", sep = ""), row.names = FALSE)
@@ -341,38 +338,35 @@ compute_results_t0 <- function(id, fileid, dsname, threads = 1){
 
 }
 
-
-compute_results_t1 <- function(id, fileid, dsname, threads = 1){
-
+# implement lcard para selecionar threshold global
+# https://search.r-project.org/CRAN/refmans/utiml/html/lcard_threshold.html
+compute_results_t2a <- function(id, fileid, dsname, threads = 1){
+  # t0 = no threshold: useful to obtain ranking measures
   true <- read.csv(paste("true-", id, ".csv", sep=""))
   true <- data.frame(sapply(true, function(x) as.numeric(as.character(x))))
   truemldr <- mldr_from_dataframe(true, labelIndices = seq(1,ncol(true)), name = "true")
 
+  # necessário para obter a cardinalidade
+  truetr <- read.csv(paste("true-", "tr", ".csv", sep=""))
+  truetr <- mldr_from_dataframe(truetr, labelIndices = seq(1,ncol(truetr)), name = "true")
+
   pred <- read.csv(paste("pred-", id, ".csv", sep=""))
   pred <- data.frame(sapply(pred, function(x) as.numeric(as.character(x))))
 
-  # Thresholding t1 - simple range
-  # faz o range
-  clusters <- parallel::makeCluster(threads)
-  doParallel::registerDoParallel(clusters)
-
-  pred <- foreach (i=1:nrow(pred), .combine=rbind, .export=c("range01")) %dopar% {
-    #for (i in 1:nrow(pred)){
-    if (sum(pred[i,]) > 0 && var(as.numeric(pred[i,])) != 0){
-      range01(pred[i,])
-    } else{
-      pred[i,]
-    }
-  }
-  parallel::stopCluster(clusters)
-
-
-  write.csv(as.bipartition(as.mlresult(pred)), paste("pred-", id, "-t1.csv",sep = ""), row.names = FALSE)
+  # aplica a função para selecionar o melhor threshold de acordo com a cardinalidade
+  pred <- lcard_threshold(as.matrix(pred), truetr$measures$cardinality, probability = T)
+  write.csv(as.bipartition(as.mlresult(pred)), paste("pred-", id, "-t2a.csv",sep = ""), row.names = FALSE)
 
   result <- NULL
-  result <- multilabel_evaluate(truemldr, pred)
+  result <- multilabel_evaluate(truemldr, pred, label = T)
 
-  showResults(result, id, fileid, dsname, "t1")
+  # a macro-AUC corrections when there is a class with no instances - utiml return null and in these cases
+  # those classes are discarded from the mean to solve this issu
+  if(is.na(result$multilabel["macro-AUC"])){
+    result$multilabel["macro-AUC"] <- mean(result$labels[,"AUC"], na.rm=TRUE)
+  }
+
+  showResults(result$multilabel, id, fileid, dsname, "t2a")
 
 }
 
@@ -383,23 +377,28 @@ compute_results_t2 <- function(id, fileid, dsname){
 
   # precisa do label space de treinamento e validacao para calculo do threshold
   truetr <- read.csv(paste("true-", "tr", ".csv", sep=""))
-  trueva <- read.csv(paste("true-", "va", ".csv", sep=""))
+  #rv trueva <- read.csv(paste("true-", "va", ".csv", sep=""))
 
   pred <- read.csv(paste("pred-", id, ".csv", sep=""))
   pred <- data.frame(sapply(pred, function(x) as.numeric(as.character(x))))
 
   # precisa das predicoes da validacao para calibrar o threshold
-  predva <- read.csv(paste("pred-", "va", ".csv", sep=""))
-  predva <- data.frame(sapply(predva, function(x) as.numeric(as.character(x))))
+  #rv predva <- read.csv(paste("pred-", "va", ".csv", sep=""))
+  #rv predva <- data.frame(sapply(predva, function(x) as.numeric(as.character(x))))
+
+  predtr <- read.csv(paste("pred-", "tr", ".csv", sep=""))
+  predtr <- data.frame(sapply(predtr, function(x) as.numeric(as.character(x))))
 
   # Thresholding t2 - One Threshold
   # calibrating the threshold
-  lcard <- (sum(truetr) + sum(trueva))/(nrow(truetr) + nrow(trueva))
-  t <- seq(0.01,0.99, 0.01)
+  #rv lcard <- (sum(truetr) + sum(trueva))/(nrow(truetr) + nrow(trueva))
+  lcard <- sum(truetr)/nrow(truetr)
+  #t <- seq(0.01,0.99, 0.01)
+  t <- sort(unique(unlist(c(read.csv(paste("pred-", id, ".csv", sep=""))))))
   bt <- 0
   bts <- 1
   for (i in 1:length(t)){
-    s <- abs(lcard - (length(which(predva >= t[i]))/nrow(predva)))
+    s <- abs(lcard - (length(which(predtr >= t[i]))/nrow(predtr)))
     if (s < bts){
       bt <- t[i]
       bts <- s
@@ -417,66 +416,6 @@ compute_results_t2 <- function(id, fileid, dsname){
   result <- multilabel_evaluate(truemldr, pred)
 
   showResults(result, id, fileid,  dsname, "t2")
-
-
-}
-
-
-
-compute_results_t3 <- function(id, fileid, dsname){
-
-  true <- read.csv(paste("true-", id, ".csv", sep=""))
-  true <- data.frame(sapply(true, function(x) as.numeric(as.character(x))))
-  truemldr <- mldr_from_dataframe(true, labelIndices = seq(1,ncol(true)), name = "true")
-
-  # precisa do label space de treinamento e validacao para calculo do threshold
-  truetr <- read.csv(paste("true-", "tr", ".csv", sep=""))
-  trueva <- read.csv(paste("true-", "va", ".csv", sep=""))
-
-  pred <- read.csv(paste("pred-", id, ".csv", sep=""))
-  pred <- data.frame(sapply(pred, function(x) as.numeric(as.character(x))))
-
-  # precisa das predicoes da validacao para calibrar o threshold
-  predva <- read.csv(paste("pred-", "va", ".csv", sep=""))
-  predva <- data.frame(sapply(predva, function(x) as.numeric(as.character(x))))
-
-  # Thresholding t3 - One Threshold per class
-  # calibrating the threshold
-  lcardpc <- (colSums(trueva) + colSums(truetr))/(nrow(trueva) + nrow(truetr))
-
-  # thresholding cc
-  t <- seq(0.01,0.99, 0.01)
-  tf <- c()
-  for (c in 1:ncol(true)){
-    bt <- 0
-    bts <- 1
-    for (i in 1:length(t)){
-      s <- abs(lcardpc[c] - (length(which(predva[c] >= t[i]))/nrow(predva)))
-      if (s < bts){
-        bt <- t[i]
-        bts <- s
-        #print(bt)
-        #print(bts)
-      }
-    }
-    tf <- c(tf, bt)
-  }
-  # end calibration
-
-  for (c in 1:ncol(pred)){
-    pos1 <- which(pred[,c] >= tf[c])
-    pos0 <- which(pred[,c] < tf[c])
-    pred[pos1, c] <- 1
-    pred[pos0, c] <- 0
-  }
-
-  write.csv(pred, paste("pred-", id, "-t3.csv",sep = ""), row.names = FALSE)
-  write.csv(tf, paste("pred-", id, "-t3-threshold.csv",sep = ""), row.names = FALSE)
-
-  result <- NULL
-  result <- multilabel_evaluate(truemldr, pred)
-
-  showResults(result, id, fileid,  dsname, "t3")
 
 
 }
@@ -566,322 +505,13 @@ showPredictionLevels <- function(){
 
 }
 
-
-
 F2H <- function(
   dsname = "birds",
   train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
   test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
   # dsname = "yeast",
   # train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
   # test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-  # valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-  dsdir = tempdir(),
-  javaExe = "java",
-  javaMem = "-Xmx3g",
-  clusJar = findClusJar(),
-  minSupportConcetps = 0,
-  clusWType = "ExpMaxParentWeight",
-  clusWParam = 0.8,
-  clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
-  threads = 1,
-  ensembleClus = 0,
-  retPredsConfs = TRUE, dagMethod="Rpcbo"){
-
-  # define some input vars
-  clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
-
-  print(paste("Java Option (for RJava and not for Clus): ", getOption("java.parameters"), sep = ""))
-
-  times <- c()
-  times <- tic(times, "Start")
-
-  # reading training file
-  setwd(dsdir)
-  print(train_file)
-  dfmldr <- mldr(train_file, force_read_from_file = T)
-  dfx <- dfmldr$dataset
-
-  # salva o nome original das classes
-  original_classnames <- names(dfmldr$attributes[dfmldr$labels$index])
-
-  # obtem os tipos dos atributos
-  att_types <- dfmldr$attributes
-
-  # ordena os atributos colocando as classes no fim
-  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
-  dfx <- dfx[,attorder]
-  firstLabel <- length(dfmldr$attributesIndexes) + 1
-  rm(dfmldr)
-  lastLabel <- ncol(dfx)
-  lastAtt <- firstLabel -1
-
-  # ordena a lista por os atributos foram reordenados
-  att_types <- att_types[attorder]
-
-  # renomeia atributos e classes para evitar problemas de caracteres especiais
-  colnames(dfx) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
-
-
-  # obtendo o arquivo de teste
-  dfmldr <- mldr(test_file, force_read_from_file = T)
-  dfxt <- dfmldr$dataset
-
-  # ordena os atributos colocando as classes no fim
-  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
-  dfxt <- dfxt[,attorder]
-
-
-  # renomeia atributos e classes para evitar problemas de caracteres especiais
-  colnames(dfxt) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
-
-
-  # obtendo o arquivo de validacao
-  dfmldr <- mldr(valid_file, force_read_from_file = T)
-  dfxv <- dfmldr$dataset
-
-  # ordena os atributos colocando as classes no fim
-  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
-  dfxv <- dfxv[,attorder]
-
-
-  # renomeia atributos e classes para evitar problemas de caracteres especiais
-  colnames(dfxv) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
-
-  times <- tic(times, "Finished file loading")
-
-
-  # inicia com o espaco de classes ####
-  df <- dfx[,firstLabel:lastLabel]
-  rownames(df) <- NULL
-  colnames(df) <- seq(1,ncol(df),1)
-
-  if (ensembleClus == 0){
-    fileid = "F2H"
-  } else {
-    fileid = "EF2H"
-  }
-  dirf <- file.path(paste(dsdir,"/", dsname, fileid, sep = ""))
-
-  unlink(dirf, recursive = TRUE)
-  dir.create(dirf)
-  setwd(dirf)
-
-  logger("Output file defined", dirf)
-  times <- tic(times, "Finished temp directory creation")
-
- 
-  combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
- 
-  times <- tic(times, "Finished PCBO")
-
-
-  inss <- Rpcbo::computeIntents(df, combs, threads = threads)
-
-  logger(paste("Found", length(combs), "formal concepts ...", sep=" "))
-  times <- tic(times, "Finished extent computing")
-
-
-  # calcula os edges entre os conceitos ####
-  edges <- coveringEdges(inss, combs, df, threads)
-  logger(paste("Found", length(edges), "edges ...", sep=" "))
-  times <- tic(times, "Finished covering edges")
-
-  #no=unlist(lapply(combs, paste, collapse = "-"))
-  #no[which(no == "")] <- "0";
-  #dd <- do.call(rbind.data.frame, edges)
-  #dd <- data.frame(origem=no[dd[,1]], destino=no[dd[,2]])
-  #colnames(dd) <- c("origem", "destino")
-  #grafo1 <- graph_from_data_frame(d = dd, vertices = no, directed = F)
-  #layout <- layout_with_kk(grafo1)
-  #layout <- layout_as_tree(grafo1, root = c(1))
-  #layout[3,2] <- 0
-
-  #layout <- layout_with_sugiyama(grafo1,maxiter = 1000, hgap = 100)
-
-  #plot(grafo1, layout=layout_as_tree(grafo1, root = c(1)), vertex.size=30)
-  #plot(grafo1, layout=layout, vertex.size=15)
-
-
-  # adiciona o no raiz e seus edges quando necessario
-  if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
-    # quais conceitos nunca aparecem no consequente do edge? estes são os filhos do novo raiz
-    filhosr <- setdiff(seq(1,length(combs),1), unique(sort(unlist(lapply(edges, function(x){x[2]})))))
-    novo <- length(combs) + 1
-    combs[[novo]] <- as.numeric(NULL)
-    inss[[novo]] <- as.numeric(rownames(df))
-    for (i in 1:length(filhosr)){
-      edges[[length(edges) + 1]] <- c(novo, filhosr[i])
-    }
-  }
-  times <- tic(times, "Finished adding root")
-
-  # encontra o R que contem todos os atributos ou o maior numero de atributos (atributo aqui = instancia)
-  r <- which.max(lengths(inss))
-
-  # descobrir os filhos de r
-  fr <- which(lengths(lapply(edges, function(x){which(x[1] == r)})) == 1)
-  edge_order <- c(fr,seq(1,length(edges))[-fr])
-
-
-  clusters <- parallel::makeCluster(threads)
-  doParallel::registerDoParallel(clusters)
-
-  # gera a string com a hierarquia de classes para posteriormente gerar os arquivos arffh
-  strpf <- foreach (i = 1:length(edge_order)) %dopar%{
-    ed <- edge_order[i]
-    strt <- paste(edges[[ed]][1], "/", edges[[ed]][2], sep="")
-    strt
-  }
-  str <- paste(unlist(strpf), collapse = ",")
-  str <- paste("@ATTRIBUTE class                                   hierarchical ", str, sep="")
-
-  parallel::stopCluster(clusters)
-
-  times <- tic(times, "Finished montagem da string da hierarquia")
-
-
-  # append validation set to test set - clus doesn't make predictions to validation set
-  lastTest <- nrow(dfxt)
-  dfxt <- rbind(dfxt, dfxv)
-
-  # generate HMC arffs
-  arffH_par("", paste(dsname, ".arff", sep = ""), dfx, dfxt, dfxv, firstLabel, lastLabel, str, inss, combs, r, att_types, threads)
-  times <- tic(times, "Finished arrfH writting")
-
-  # gerar conf Clus
-  clusSfile <- paste(dsname, ".s", sep="")
-  clusTrfile <- paste(dsname, "_train.arff", sep="")
-  clusTefile <- paste(dsname, "_test.arff", sep="")
-  clusVafile <- paste(dsname, "_valid.arff", sep="")
-  geraConfClusHMC(clusSfile, clusTrfile, clusTefile, clusVafile, clusWType, clusWParam, clusOptimizeErrorMeasure)
-
-  print(clusSfile)
-  print(clusTrfile)
-  print(clusTefile)
-
-  # executar Clus ####
-  if (ensembleClus == 0){
-    cmd <- paste(clusExe, " ", dsname,  sep= "")
-  } else {
-    cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
-  }
-  print(cmd)
-  clusout <- system(cmd, intern = TRUE)
-
-  cat(clusout)
-
-  times <- tic(times, "Finished ClusHMC")
-
-  # obtem os resultados  do Clus####
-  logger("Starting reading arff results from Clus")
-  predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
-  predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
-  logger("Finished reading arff results from Clus")
-
-
-  # split test and validations predictions
-  predarffva <- predarffte[(lastTest+1):nrow(predarffte),]
-  predarffte <- predarffte[1:lastTest,]
-  write.csv(predarffte, "pred-conc-te.csv", row.names = FALSE)
-  dfxt <- dfxt[1:lastTest,]
-
-
-  logger("Starting converting predictions H->Flat ...")
-  compute_predictions_prob(dfx[, firstLabel:lastLabel], predarfftr, combs, "tr")
-  compute_predictions_prob(dfxv[, firstLabel:lastLabel], predarffva, combs, "va")
-  compute_predictions_prob(dfxt[, firstLabel:lastLabel], predarffte, combs, "te")
-  logger("Finished converting predictions H->Flat.")
-
-  logger("Starting computing results ...")
-  compute_results_t0("tr", fileid, dsname)
-  compute_results_t0("va", fileid, dsname)
-  compute_results_t0("te", fileid, dsname)
-
-  compute_results_t1("tr", fileid, dsname, threads)
-  compute_results_t1("va", fileid, dsname, threads)
-  compute_results_t1("te", fileid, dsname, threads)
-
-  compute_results_t2("tr", fileid, dsname)
-  compute_results_t2("va", fileid, dsname)
-  compute_results_t2("te", fileid, dsname)
-
-  compute_results_t3("tr", fileid, dsname)
-  compute_results_t3("va", fileid, dsname)
-  compute_results_t3("te", fileid, dsname)
-  logger("Finished computing results.")
-
-  list.save(inss, "list_inss.rds")
-  list.save(combs, "list_combs.rds")
-  list.save(original_classnames, "list_original_classnames.rds")
-
-  infos <- c()
-  infos[1] <- dsname
-  infos[2] <- dsdir
-  infos[3] <- minSupportConcetps
-  infos[4] <- clusExe
-  infos[5] <- threads
-  infos[6] <- length(combs)
-  infos[7] <- length(edges)
-  infos[8] <- clusWType
-  infos[9] <- clusWParam
-  infos[10] <- clusOptimizeErrorMeasure
-  infos[11] <- ensembleClus
-
-  names(infos) <- c("Dataset", "Outdir", "Min. Sup. PCBO", "Clus", "Threads", "Number of concepts", "Number of edges","clusWType","clusWParam","clusOptimizeErrorMeasure", "ensemble")
-  write.csv(x = infos, file = paste(dsname, "-metadata.csv", sep = ""))
-
-  print(infos)
-
-  times <- tic(times, "Finished writting results")
-
-  timest <- tac(times)
-  apply(timest, 1, logger, "TIMES")
-  write.csv(timest, "times.csv")
-
-  ret = NULL
-  if (retPredsConfs){
-    ret = list()
-    ret$ClusConfte <- read.csv("pred-te.csv")
-    ret$ClusConfva <- read.csv("pred-va.csv")
-    ret$ClusConftr <- read.csv("pred-tr.csv")
-    ret$truete <- read.csv("true-te.csv")
-    ret$trueva <- read.csv("true-va.csv")
-    ret$truetr <- read.csv("true-tr.csv")
-    ret$predte0 <- read.csv("pred-te-t0.csv")
-    ret$predte1 <- read.csv("pred-te-t1.csv")
-    ret$predte2 <- read.csv("pred-te-t2.csv")
-    ret$predte3 <- read.csv("pred-te-t3.csv")
-    ret$predtr0 <- read.csv("pred-tr-t0.csv")
-    ret$predtr1 <- read.csv("pred-tr-t1.csv")
-    ret$predtr2 <- read.csv("pred-tr-t2.csv")
-    ret$predtr3 <- read.csv("pred-tr-t3.csv")
-    ret$predva0 <- read.csv("pred-va-t0.csv")
-    ret$predva1 <- read.csv("pred-va-t1.csv")
-    ret$predva2 <- read.csv("pred-va-t2.csv")
-    ret$predva3 <- read.csv("pred-va-t3.csv")
-    ret$resultstet0 <- read.csv(paste("results", "te", dsname, "F2H", "t0.csv", sep = "-"))
-    ret$resultstet1 <- read.csv(paste("results", "te", dsname, "F2H", "t1.csv", sep = "-"))
-    ret$resultstet2 <- read.csv(paste("results", "te", dsname, "F2H", "t2.csv", sep = "-"))
-    ret$resultstet3 <- read.csv(paste("results", "te", dsname, "F2H", "t3.csv", sep = "-"))
-    ret$predlevelte <- read.csv("predlevel-te.csv")
-
-    #showPredictionLevels()
-
-  }
-  return(ret)
-}
-
-F2Hhsc <- function(
-  dsname = "birds",
-  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-  valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-  # dsname = "yeast",
-  # train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-  # test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-  # valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
   dsdir = tempdir(),
   javaExe = "java",
   javaMem = "-Xmx3g",
@@ -893,24 +523,21 @@ F2Hhsc <- function(
   threads = 1,
   ensembleClus = 0,
   retPredsConfs = TRUE,
-  run_hsc_path = ""){
+  HierApproach = "global"){
 
   # define some input vars
   clusExe <- paste(javaExe, " ", javaMem, " -jar \"", clusJar, "\"", sep = "")
 
   print(paste("Java Option (for RJava and not for Clus): ", getOption("java.parameters"), sep = ""))
 
-  # reading input files
   times <- c()
   times <- tic(times, "Start")
 
-  setwd(dsdir)
-
   # reading training file
+  setwd(dsdir)
   print(train_file)
   dfmldr <- mldr(train_file, force_read_from_file = T)
   dfx <- dfmldr$dataset
-
 
   # salva o nome original das classes
   original_classnames <- names(dfmldr$attributes[dfmldr$labels$index])
@@ -941,22 +568,8 @@ F2Hhsc <- function(
   attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
   dfxt <- dfxt[,attorder]
 
-
   # renomeia atributos e classes para evitar problemas de caracteres especiais
   colnames(dfxt) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
-
-
-  # obtendo o arquivo de validacao
-  dfmldr <- mldr(valid_file, force_read_from_file = T)
-  dfxv <- dfmldr$dataset
-
-  # ordena os atributos colocando as classes no fim
-  attorder <- c(dfmldr$attributesIndexes, dfmldr$labels$index)
-  dfxv <- dfxv[,attorder]
-
-
-  # renomeia atributos e classes para evitar problemas de caracteres especiais
-  colnames(dfxv) <- c(paste("att", seq(1, lastAtt), sep = ""), paste("class", seq(firstLabel:lastLabel), sep=""))
 
   times <- tic(times, "Finished file loading")
 
@@ -983,20 +596,7 @@ F2Hhsc <- function(
   combs = Rpcbo::computeExtents(df, threads = threads, minsupport = minSupportConcetps)
   times <- tic(times, "Finished PCBO")
 
-  ### begin test
-  # filter just the top concept for each class
-  selcombs <- c()
-  for (cl in 1:19){
-    containscl <- combs[which(unlist(lapply(combs, function(x){cl %in% x})))]
-    menor <- which.min(lengths(containscl))
-    selcombs = c(selcombs, containscl[menor])
-  }
-  combs <- selcombs
-  ### end test
-
-
   inss <- Rpcbo::computeIntents(df, combs, threads = threads)
-
   logger(paste("Found", length(combs), "formal concepts ...", sep=" "))
   times <- tic(times, "Finished extent computing")
 
@@ -1005,7 +605,6 @@ F2Hhsc <- function(
   edges <- coveringEdges(inss, combs, df, threads)
   logger(paste("Found", length(edges), "edges ...", sep=" "))
   times <- tic(times, "Finished covering edges")
-
 
   # adiciona o no raiz e seus edges quando necessario
   if (length(which(unlist(lapply(inss, function(x){identical(x, as.numeric(rownames(df)))})))) == 0){
@@ -1027,7 +626,6 @@ F2Hhsc <- function(
   fr <- which(lengths(lapply(edges, function(x){which(x[1] == r)})) == 1)
   edge_order <- c(fr,seq(1,length(edges))[-fr])
 
-
   clusters <- parallel::makeCluster(threads)
   doParallel::registerDoParallel(clusters)
 
@@ -1041,79 +639,74 @@ F2Hhsc <- function(
   str <- paste("@ATTRIBUTE class                                   hierarchical ", str, sep="")
 
   parallel::stopCluster(clusters)
-
   times <- tic(times, "Finished montagem da string da hierarquia")
 
-
-
-  # append validation set to test set - clus doesn't make predictions to validation set
-  lastTest <- nrow(dfxt)
-  dfxt <- rbind(dfxt, dfxv)
-
-
-  arffH_par("", paste(dsname, ".arff", sep = ""), dfx, dfxt, dfxv, firstLabel, lastLabel, str, inss, combs, r, att_types, threads)
-
+  # generate HMC arffs
+  arffH_par("", paste(dsname, ".arff", sep = ""), dfx, dfxt, firstLabel, lastLabel, str, inss, combs, r, att_types, threads)
   times <- tic(times, "Finished arrfH writting")
 
   # gerar conf Clus
   clusSfile <- paste(dsname, ".s", sep="")
   clusTrfile <- paste(dsname, "_train.arff", sep="")
   clusTefile <- paste(dsname, "_test.arff", sep="")
-  clusVafile <- paste(dsname, "_valid.arff", sep="")
-  geraConfClusHMC(clusSfile, clusTrfile, clusTefile, clusVafile, clusWType, clusWParam, clusOptimizeErrorMeasure)
+  geraConfClusHMC(clusSfile, clusTrfile, clusTefile, clusWType, clusWParam, clusOptimizeErrorMeasure)
 
   print(clusSfile)
   print(clusTrfile)
   print(clusTefile)
 
-  system(paste("cp ", run_hsc_path, ".", sep=" "))
+  # executar Clus ####
 
+  if (HierApproach == "global"){
+    if (ensembleClus == 0){
+      cmd <- paste(clusExe, " ", dsname,  sep= "")
+    } else {
+      cmd <- paste(clusExe, " -forest ", dsname,  sep= "")
+    }
+    print(cmd)
+    clusout <- system(cmd, intern = TRUE)
 
-  cmd <- paste("perl run_hsc.pl ", dsname,  sep= "")
-  print(cmd)
-  clusout <- system(cmd, intern = TRUE)
+    cat(clusout)
 
-  cat(clusout)
+    times <- tic(times, "Finished ClusHMC")
 
-  times <- tic(times, "Finished ClusHMC")
+    logger("Starting reading arff results from Clus")
+    predarfftr <- readArffR(paste(dsname, ".train.1.pred.arff", sep = ""))
+    predarffte <- readArffR(paste(dsname, ".test.pred.arff", sep = ""))
+    logger("Finished reading arff results from Clus")
+  } else {
+    system(paste("cp ", findClusHSCPerl(), ".", sep=" "))
 
+    cmd <- paste("perl run_hsc.pl ", dsname,  " ", strsplit(clusJar, "MyClus")[[1]][1], sep= "")
+    print(cmd)
+    clusout <- system(cmd, intern = TRUE)
 
-  logger("Starting reading arff results from Clus")
-  predarfftr <- readArffR(paste(dsname, ".hsc.combined.train.1.pred.arff", sep = ""))
-  predarffte <- readArffR(paste(dsname, ".hsc.combined.test.pred.arff", sep = ""))
+    cat(clusout)
 
-  logger("Finished reading arff results from Clus")
+    times <- tic(times, "Finished ClusHMC")
 
+    logger("Starting reading arff results from Clus")
+    predarfftr <- readArffR(paste(dsname, ".hsc.combined.train.1.pred.arff", sep = ""))
+    predarffte <- readArffR(paste(dsname, ".hsc.combined.test.pred.arff", sep = ""))
 
-  # split test and validations predictions
-  predarffva <- predarffte[(lastTest+1):nrow(predarffte),]
-  predarffte <- predarffte[1:lastTest,]
-  write.csv(predarffte, "pred-conc-te.csv", row.names = FALSE)
-  dfxt <- dfxt[1:lastTest,]
+    logger("Finished reading arff results from Clus")
 
+  }
 
   logger("Starting converting predictions H->Flat ...")
   compute_predictions_prob(dfx[, firstLabel:lastLabel], predarfftr, combs, "tr")
-  compute_predictions_prob(dfxv[, firstLabel:lastLabel], predarffva, combs, "va")
   compute_predictions_prob(dfxt[, firstLabel:lastLabel], predarffte, combs, "te")
   logger("Finished converting predictions H->Flat.")
 
   logger("Starting computing results ...")
   compute_results_t0("tr", fileid, dsname)
-  compute_results_t0("va", fileid, dsname)
   compute_results_t0("te", fileid, dsname)
 
-  compute_results_t1("tr", fileid, dsname, threads)
-  compute_results_t1("va", fileid, dsname, threads)
-  compute_results_t1("te", fileid, dsname, threads)
-
   compute_results_t2("tr", fileid, dsname)
-  compute_results_t2("va", fileid, dsname)
   compute_results_t2("te", fileid, dsname)
 
-  compute_results_t3("tr", fileid, dsname)
-  compute_results_t3("va", fileid, dsname)
-  compute_results_t3("te", fileid, dsname)
+  compute_results_t2a("tr", fileid, dsname)
+  compute_results_t2a("te", fileid, dsname)
   logger("Finished computing results.")
 
   list.save(inss, "list_inss.rds")
@@ -1132,13 +725,12 @@ F2Hhsc <- function(
   infos[9] <- clusWParam
   infos[10] <- clusOptimizeErrorMeasure
   infos[11] <- ensembleClus
-  u
+  # TODO: log new parameters
 
   names(infos) <- c("Dataset", "Outdir", "Min. Sup. PCBO", "Clus", "Threads", "Number of concepts", "Number of edges","clusWType","clusWParam","clusOptimizeErrorMeasure", "ensemble")
   write.csv(x = infos, file = paste(dsname, "-metadata.csv", sep = ""))
 
   print(infos)
-
   times <- tic(times, "Finished writting results")
 
   timest <- tac(times)
@@ -1147,73 +739,67 @@ F2Hhsc <- function(
 
   ret = NULL
   if (retPredsConfs){
-    ret = list();
+    ret = list()
     ret$ClusConfte <- read.csv("pred-te.csv")
-    ret$ClusConfva <- read.csv("pred-va.csv")
     ret$ClusConftr <- read.csv("pred-tr.csv")
     ret$truete <- read.csv("true-te.csv")
-    ret$trueva <- read.csv("true-va.csv")
     ret$truetr <- read.csv("true-tr.csv")
-    ret$predte1 <- read.csv("pred-te-t0.csv")
-    ret$predte1 <- read.csv("pred-te-t1.csv")
+    ret$predte0 <- read.csv("pred-te-t0.csv")
     ret$predte2 <- read.csv("pred-te-t2.csv")
-    ret$predte3 <- read.csv("pred-te-t3.csv")
-    ret$predtr1 <- read.csv("pred-tr-t0.csv")
-    ret$predtr1 <- read.csv("pred-tr-t1.csv")
+    ret$predte2a <- read.csv("pred-te-t2a.csv")
+    ret$predtr0 <- read.csv("pred-tr-t0.csv")
     ret$predtr2 <- read.csv("pred-tr-t2.csv")
-    ret$predtr3 <- read.csv("pred-tr-t3.csv")
-    ret$predva1 <- read.csv("pred-va-t0.csv")
-    ret$predva1 <- read.csv("pred-va-t1.csv")
-    ret$predva2 <- read.csv("pred-va-t2.csv")
-    ret$predva3 <- read.csv("pred-va-t3.csv")
-
-    ret$resultstet0 <- read.csv(paste("results", "te", dsname, "F2H", "t0.csv", sep = "-"))
-    ret$resultstet1 <- read.csv(paste("results", "te", dsname, "F2H", "t1.csv", sep = "-"))
-    ret$resultstet2 <- read.csv(paste("results", "te", dsname, "F2H", "t2.csv", sep = "-"))
-    ret$resultstet3 <- read.csv(paste("results", "te", dsname, "F2H", "t3.csv", sep = "-"))
-
+    ret$predtr2a <- read.csv("pred-tr-t2a.csv")
+    ret$resultstet0 <- read.csv(paste("results", "te", dsname, fileid, "t0.csv", sep = "-"))
+    ret$resultstet2 <- read.csv(paste("results", "te", dsname, fileid, "t2.csv", sep = "-"))
+    ret$resultstet2a <- read.csv(paste("results", "te", dsname, fileid, "t2a.csv", sep = "-"))
     ret$predlevelte <- read.csv("predlevel-te.csv")
 
-    showPredictionLevels()
+    #showPredictionLevels()
+
   }
   return(ret)
 }
 
+
 testeF2Hhsc <- function(){
-  x <- F2Hhsc(dsname = "yeast",
+  x <- F2H(dsname = "yeast", threads = 4, HierApproach = "local",
               train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
               test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-              valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-              dsdir = "/home/mauri/temp",
-              run_hsc_path = "/home/mauri/Downloads/Clus_hscok/Clus/run_hsc.pl"
+              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
   )
+
+  y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
+              train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+              test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+  )
+
+  y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
+           train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+           test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
+  )
+
 }
-
-
 
 testeF2Hhmc <- function(){
-  r <- lapply(1:30, function(x){
-    x <- F2H(dsname = "yeast", threads = 4,
+    x <- F2H(dsname = "yeast", threads = 4, HierApproach = "global",
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-           valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
-           clusWParam = 0.1, dagMethod="Kohonen")
-    }
-  )
-  x <- F2H(dsname = "birds", threads = 4,
+           ensembleClus = 1
+           )
+
+   y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-           test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-           valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-           dagMethod="K-means"
-  )
+           test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
+        )
+
+   y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
+            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+            ensembleClus = 1
+   )
+
+
 }
 
-# summary(
-# unlist(
-#   lapply(1:length(r), function(x){
-#   rr <- r[[x]]
-#   rr$resultstet2[rr$resultstet2$X == "recall","x"]
-# })
-# )
-# )
-#

@@ -1,35 +1,35 @@
 
-majority_voting_bp <- function(f2hout, mdatat, mdatav, m, dsname){
+majority_voting_bp <- function(f2hout, mdatat, m, dsname){
 
-  sumbpt1 <- f2hout[[1]]$predte1
-  sumbpt2 <- f2hout[[1]]$predte2
-  sumbpt3 <- f2hout[[1]]$predte3
+  sumbpt0 <- f2hout[[1]]$predte0
+  ##sumbpt2 <- f2hout[[1]]$predte2
+  sumbpt2a <- f2hout[[1]]$predte2a
   for(iteration in seq(2:m)){
-    sumbpt1 = sumbpt1 + f2hout[[iteration]]$predte1
-    sumbpt2 = sumbpt2 + f2hout[[iteration]]$predte2
-    sumbpt3 = sumbpt3 + f2hout[[iteration]]$predte3
+    sumbpt0 = sumbpt0 + f2hout[[iteration]]$predte0
+    #sumbpt2 = sumbpt2 + f2hout[[iteration]]$predte2
+    sumbpt2a = sumbpt2a + f2hout[[iteration]]$predte2a
   }
 
-  sumbpt1[sumbpt1 < ceiling(m/2)] <- 0
-  sumbpt1[sumbpt1 >= ceiling(m/2)] <- 1
-  sumbpt2[sumbpt2 < ceiling(m/2)] <- 0
-  sumbpt2[sumbpt2 >= ceiling(m/2)] <- 1
-  sumbpt3[sumbpt3 < ceiling(m/2)] <- 0
-  sumbpt3[sumbpt3 >= ceiling(m/2)] <- 1
+  sumbpt0[sumbpt0 < ceiling(m/2)] <- 0
+  sumbpt0[sumbpt0 >= ceiling(m/2)] <- 1
+  #sumbpt2[sumbpt2 < ceiling(m/2)] <- 0
+  #sumbpt2[sumbpt2 >= ceiling(m/2)] <- 1
+  sumbpt2a[sumbpt2a < ceiling(m/2)] <- 0
+  sumbpt2a[sumbpt2a >= ceiling(m/2)] <- 1
 
 
-  write.csv(sumbpt1, paste("pred-", "teb", "-t1.csv",sep = ""), row.names = FALSE)
-  result <- multilabel_evaluate(mdatat, sumbpt1)
-  showResults(result, "teb", "EF2H",  dsname, "t1")
+  write.csv(sumbpt0, paste("pred-", "teb", "-t0.csv",sep = ""), row.names = FALSE)
+  result <- multilabel_evaluate(mdatat, sumbpt0)
+  showResults(result, "teb", "EF2H",  dsname, "t0")
 
 
-  write.csv(sumbpt2, paste("pred-", "teb", "-t2.csv",sep = ""), row.names = FALSE)
-  result <- multilabel_evaluate(mdatat, sumbpt2)
-  showResults(result, "teb", "EF2H",  dsname, "t2")
+  #write.csv(sumbpt2, paste("pred-", "teb", "-t2.csv",sep = ""), row.names = FALSE)
+  #result <- multilabel_evaluate(mdatat, sumbpt2)
+  #showResults(result, "teb", "EF2H",  dsname, "t2")
 
-  write.csv(sumbpt3, paste("pred-", "teb", "-t3.csv",sep = ""), row.names = FALSE)
-  result <- multilabel_evaluate(mdatat, sumbpt3)
-  showResults(result, "teb", "EF2H",  dsname, "t3")
+  write.csv(sumbpt2a, paste("pred-", "teb", "-t2a.csv",sep = ""), row.names = FALSE)
+  result <- multilabel_evaluate(mdatat, sumbpt2a)
+  showResults(result, "teb", "EF2H",  dsname, "t2a")
 
 }
 
@@ -38,11 +38,9 @@ EF2H <- function(
     dsname = "birds",
     train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
     test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-    valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
     #dsname = "yeast",
     #train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
     #test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-    #valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
     dsdire = tempdir(),
     javaExe = "java",
     javaMem = "-Xmx3g",
@@ -54,7 +52,10 @@ EF2H <- function(
     threads = 1,
     threadsf2h = 1,
     ensembleClus = 0,
-    m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA, retPredsConfs = TRUE){
+    m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA, retPredsConfs = TRUE,
+    HierApproach = "global",
+    run_hsc_path = ""
+    ){
 
   # reading input files
   times <- c()
@@ -86,8 +87,8 @@ EF2H <- function(
   clusters <- parallel::makeCluster(threads)
   doParallel::registerDoParallel(clusters)
 
-  f2hout <- foreach (iteration = 1:m) %dopar%{
-    #for(iteration in seq(1:m)){
+  f2hout <- foreach (iteration = 1:m ) %dopar%{
+
     print(iteration)
     setwd(dsdire)
     ndata <- create_subset(mdata, idx[[iteration]]$rows, idx[[iteration]]$cols)
@@ -101,50 +102,47 @@ EF2H <- function(
       dsname = train_file_e,
       train_file = file.path(paste(dsdire, "/", train_file_e, sep="")),
       test_file = test_file,
-      valid_file = valid_file,
       dsdir = dsdire,
       javaExe = javaExe,
       javaMem = javaMem,
       minSupportConcetps = minSupportConcetps,
       threads = threadsf2h,
-      ensembleClus = 0
+      ensembleClus = ensembleClus,
+      HierApproach = HierApproach,
+      run_hsc_path = run_hsc_path
     )
     sink()
     retf2h
   }
+
   parallel::stopCluster(clusters)
 
   # reading the test and validation files
   mdatat <- mldr(test_file, force_read_from_file = T)
-  mdatav <- mldr(valid_file, force_read_from_file = T)
 
   logger("Starting majority voting schema by using bipartition results ...")
-  majority_voting_bp(f2hout, mdatat, mdatav, m, dsname)
+  majority_voting_bp(f2hout, mdatat, m, dsname)
   logger("Finished majority voting schema by using bipartition results.")
 
   logger("Starting majority voting schema by using probabilities results ...")
   sumprob <- f2hout[[1]]$ClusConfte
-  sumprobva <- f2hout[[1]]$ClusConfva
+
   for(iteration in seq(2:m)){
     sumprob = sumprob + f2hout[[iteration]]$ClusConfte
-    sumprobva = sumprobva + f2hout[[iteration]]$ClusConfva
   }
 
   sumprob = sumprob/m
-  sumprobva = sumprobva/m
+
 
   # TODO: adapt the compute_results_xx functions from F2H to receive data by params avoiding the use of disk files
   id = "tep"
   write.csv(mdatat$dataset[,mdatat$labels$index], paste("true-", id, ".csv", sep = ""), row.names = FALSE)
   write.csv(sumprob, paste("pred-", id, ".csv", sep = ""), row.names = FALSE)
-  write.csv(sumprobva, paste("pred-va.csv", sep = ""), row.names = FALSE)
   write.csv(mdata$dataset[,mdata$labels$index], paste("true-", "tr", ".csv", sep=""), row.names = FALSE)
-  write.csv(mdatav$dataset[,mdatav$labels$index], paste("true-", "va", ".csv", sep=""), row.names = FALSE)
 
   compute_results_t0(id, "EF2H", dsname)
-  compute_results_t1(id, "EF2H", dsname)
-  compute_results_t2(id, "EF2H", dsname)
-  compute_results_t3(id, "EF2H", dsname)
+  #compute_results_t2(id, "EF2H", dsname)
+  compute_results_t2a(id, "EF2H", dsname)
 
   logger("Finished majority voting schema by using probabilities results ...")
 
@@ -152,35 +150,31 @@ EF2H <- function(
   timest <- tac(times)
   apply(timest, 1, logger, "TIMES")
 
-  infos <- c(dsname,  train_file,  test_file, valid_file, dsdire, javaExe,  javaMem,  clusJar, minSupportConcetps, clusWType, clusWParam, clusOptimizeErrorMeasure, threads, threadsf2h, ensembleClus, m, subsample, attr.space, replacement, seed, retPredsConfs)
-  names(infos) <- c("dsname", "train_file", "test_file", "valid_file", "dsdire", "javaExe", "javaMem", "clusJar", "minSupportConcetps", "clusWType", "clusWParam", "clusOptimizeErrorMeasure", "threads", "threadsf2h", "ensembleClus", "m", "subsample", "attr.space", "replacement", "seed", "retPredsConfs")
+  infos <- c(dsname,  train_file,  test_file, dsdire, javaExe,  javaMem,  clusJar, minSupportConcetps, clusWType, clusWParam, clusOptimizeErrorMeasure, threads, threadsf2h, ensembleClus, m, subsample, attr.space, replacement, seed, retPredsConfs)
+  names(infos) <- c("dsname", "train_file", "test_file", "dsdire", "javaExe", "javaMem", "clusJar", "minSupportConcetps", "clusWType", "clusWParam", "clusOptimizeErrorMeasure", "threads", "threadsf2h", "ensembleClus", "m", "subsample", "attr.space", "replacement", "seed", "retPredsConfs")
   write.csv(x = infos, file = paste(dsname, "-metadata.csv", sep = ""))
 
   ret = NULL
   if (retPredsConfs){
     ret = list();
     ret$truetr <- read.csv("true-tr.csv");
-    ret$trueva <- read.csv("true-va.csv");
     ret$truete <- read.csv("true-tep.csv");
-    ret$predtebt1 <- read.csv("pred-teb-t1.csv");
-    ret$resultstebt1 <- read.csv(paste("results", "teb", dsname, "EF2H", "t1.csv", sep = "-"));
-    ret$predtebt2 <- read.csv("pred-teb-t2.csv");
-    ret$resultstebt2 <- read.csv(paste("results", "teb", dsname, "EF2H", "t2.csv", sep = "-"));
-    ret$predtebt3 <- read.csv("pred-teb-t3.csv");
-    ret$resultstebt3 <- read.csv(paste("results", "teb", dsname, "EF2H", "t3.csv", sep = "-"));
+    #ret$predtebt2 <- read.csv("pred-teb-t2.csv");
+    #ret$resultstebt2 <- read.csv(paste("results", "teb", dsname, "EF2H", "t2.csv", sep = "-"));
+    ret$predtebt2a <- read.csv("pred-teb-t2a.csv");
+    ret$resultstebt2a <- read.csv(paste("results", "teb", dsname, "EF2H", "t2a.csv", sep = "-"));
 
     ret$predConfstep <- sumprob
-    ret$predConfsvap <- sumprobva
-    ret$predtept1 <- read.csv("pred-tep-t1.csv");
-    ret$resultstept1 <- read.csv(paste("results", "tep", dsname, "EF2H", "t1.csv", sep = "-"));
+    ret$predtept0 <- read.csv("pred-tep-t0.csv");
+    ret$resultstept0 <- read.csv(paste("results", "tep", dsname, "EF2H", "t0.csv", sep = "-"));
 
-    ret$predtept2 <- read.csv("pred-tep-t2.csv");
-    ret$resultstept2 <- read.csv(paste("results", "tep", dsname, "EF2H", "t2.csv", sep = "-"));
-    ret$thresholdstept2 <- read.csv("pred-tep-t2-threshold.csv")
+    # ret$predtept2 <- read.csv("pred-tep-t2.csv");
+    # ret$resultstept2 <- read.csv(paste("results", "tep", dsname, "EF2H", "t2.csv", sep = "-"));
+    # ret$thresholdstept2 <- read.csv("pred-tep-t2-threshold.csv")
 
-    ret$predtept3 <- read.csv("pred-tep-t3.csv");
-    ret$resultstept3 <- read.csv(paste("results", "tep", dsname, "EF2H", "t3.csv", sep = "-"));
-    ret$thresholdstept3 <- read.csv("pred-tep-t3-threshold.csv")
+    ret$predtept2a <- read.csv("pred-tep-t2a.csv");
+    ret$resultstept2a <- read.csv(paste("results", "tep", dsname, "EF2H", "t2a.csv", sep = "-"));
+    #ret$thresholdstept2a <- read.csv("pred-tep-t2a-threshold.csv")
 
     ret$F2HData <- f2hout
     ret$infos <- infos
@@ -194,16 +188,33 @@ EF2H <- function(
 
 
 testeEF2Hhmc <- function(){
-  x <- EF2H(dsname = "yeast", threads = 3,
+  x <- EF2H(dsname = "yeast", threads = 10,
             train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-            valid_file = file.path(paste(findF2HLibPath(), "/data/yeast_valid_1", sep="")),
             threadsf2h = 2, m = 10, subsample = 1, attr.space = 1
   )
-  x <- EF2H(dsname = "birds", threads = 2,
+  x <- EF2H(dsname = "birds", threads = 10,
             train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-            valid_file = file.path(paste(findF2HLibPath(), "/data/birds_valid_1", sep="")),
-            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1
+            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, ensembleClus = 1
   )
+
+
+  x <- EF2H(dsname = "birds", threads = 10,
+            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, ensembleClus = 0,
+            HierApproach = "local",
+            run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+            )
+
+  x <- EF2H(dsname = "yeast", threads = 10,
+            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
+            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+            threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, ensembleClus = 0,
+            HierApproach = "local",
+            run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+  )
+
+
 }
