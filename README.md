@@ -192,3 +192,17 @@ result <- F2H(
 -   F2H with local approach is slower but achieves best results;
 
 -   To run F2H with datasets with \|Labels\| \> 20 we recommend the use of the minSupportConcetps = 10 or bigger.
+
+## How to cite?
+```
+@article{F2H,
+  author = {Ferrandin, Mauri and Cerri, Ricardo},
+  title = {{Multi-label classification via closed frequent labelsets and label taxonomies}},
+  booktitle = {Soft Computing},
+  doi = {10.1007/s00500-023-08048-5},
+  publisher = {Springer Berlin Heidelberg},
+  url = {https://doi.org/10.1007/s00500-023-08048-5},
+  year = {2023}
+}
+
+
