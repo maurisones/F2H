@@ -677,7 +677,7 @@ F2H <- function(
   } else {
     system(paste("cp ", findClusHSCPerl(), ".", sep=" "))
 
-    cmd <- paste("perl run_hsc.pl ", dsname,  " ", strsplit(clusJar, "MyClus")[[1]][1], sep= "")
+    cmd <- paste("perl run_hsc.pl ", dsname,  " ", findF2HLibPath(), "/hsc", " ", javaExe, " ", javaMem, sep= "")
     print(cmd)
     clusout <- system(cmd, intern = TRUE)
 
