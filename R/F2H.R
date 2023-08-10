@@ -677,7 +677,7 @@ F2H <- function(
   } else {
     system(paste("cp ", findClusHSCPerl(), ".", sep=" "))
 
-    cmd <- paste("perl run_hsc.pl ", dsname,  " ", strsplit(clusJar, "MyClus")[[1]][1], sep= "")
+    cmd <- paste("perl run_hsc.pl ", dsname,  " ", findF2HLibPath(), "/hsc", " ", javaExe, " ", javaMem, sep= "")
     print(cmd)
     clusout <- system(cmd, intern = TRUE)
 
@@ -765,12 +765,14 @@ F2H <- function(
 testeF2Hhsc <- function(){
   x <- F2H(dsname = "yeast", threads = 4, HierApproach = "local",
               train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep=""))
+              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
+              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
   )
 
   y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
               train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-              test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
+              test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
   )
 
   y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
@@ -800,4 +802,3 @@ testeF2Hhmc <- function(){
 
 
 }
-
