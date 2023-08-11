@@ -53,8 +53,7 @@ EF2H <- function(
     threadsf2h = 1,
     ensembleClus = 0,
     m = 10, subsample = 1, attr.space = 1, replacement = TRUE, seed = NA, retPredsConfs = TRUE,
-    HierApproach = "global",
-    run_hsc_path = ""
+    HierApproach = "global"
     ){
 
   # reading input files
@@ -108,8 +107,7 @@ EF2H <- function(
       minSupportConcetps = minSupportConcetps,
       threads = threadsf2h,
       ensembleClus = ensembleClus,
-      HierApproach = HierApproach,
-      run_hsc_path = run_hsc_path
+      HierApproach = HierApproach
     )
     sink()
     retf2h
@@ -204,16 +202,14 @@ testeEF2Hhmc <- function(){
             train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
             threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, ensembleClus = 0,
-            HierApproach = "local",
-            run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+            HierApproach = "local"
             )
 
   x <- EF2H(dsname = "yeast", threads = 10,
             train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
             threadsf2h = 2, m = 10, subsample = 1, attr.space = 1, ensembleClus = 0,
-            HierApproach = "local",
-            run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+            HierApproach = "local"
   )
 
 

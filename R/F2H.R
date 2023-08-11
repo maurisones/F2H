@@ -779,7 +779,12 @@ testeF2Hhsc <- function(){
            train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
   )
-
+  y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
+           train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+           test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+           javaExe = "/usr/lib/jvm/java-1.8.0-openjdk-amd64/bin/java",
+           javaMem = "-Xmx4g"
+  )
 }
 
 testeF2Hhmc <- function(){
