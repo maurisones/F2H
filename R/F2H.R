@@ -765,14 +765,12 @@ F2H <- function(
 testeF2Hhsc <- function(){
   x <- F2H(dsname = "yeast", threads = 4, HierApproach = "local",
               train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
-              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+              test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep=""))
   )
 
   y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
               train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
-              test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-              run_hsc_path = "/home/mauri/Downloads/Clus_working_hsc/run_hsc.pl"
+              test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep=""))
   )
 
   y <- F2H(dsname = "birds", threads = 4, HierApproach = "local",
