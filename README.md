@@ -175,9 +175,88 @@ result <- F2H(
 )
 ```
 
+
+## How to use EF2H 
+
+## Ensemble parameters
+
+The following parameters are allowed in EF2H ensemble versions:
+
+-   **m**: The number of models:
+
+    -   *default* value m = 10
+
+-   **subsample**: The proportion of instances in subsamples, where 1 means the number of instances equal to that of the original dataset:
+
+    -   *default* value subsample = 1
+
+-   **attr.space**: The proportion of attributos in subsamples, where 1 means the number of attributes to that of the original dataset:
+
+    -   *default* value attr.space = 1
+    
+-   **replacement**: Select with (or without) replacement the instances in each submodel:
+
+    -   *default* value replacement = TRUE    
+
+-   **ensembleClus**: Indicates to Clus use a single PCT or bag of PCTs:
+
+    -   *default* value ensembleClus = 0    
+
+
+#### Running EF2H1 (see EF2H paper)
+
+```{r setup, include=FALSE}
+library("F2H")
+resultEF2H1 <- EF2H(dsname = "birds_folder_1", threads = 5,
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  threadsf2h = 2, m = 10, subsample = 1, attr.space = 1,
+  ensembleClus = 1
+)
+```
+
+#### Running EF2H2G (see EF2H paper)
+
+```{r setup, include=FALSE}
+library("F2H")
+resultEF2H2G <- EF2H(dsname = "birds_folder_1", threads = 5,
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  threadsf2h = 2, m = 10, subsample = 1, attr.space = 1,
+  ensembleClus = 0,
+  HierApproach = "global"
+)
+```
+
+#### Running EF2H2L (see EF2H paper)
+
+```{r setup, include=FALSE}
+library("F2H")
+resultEF2H2L <- EF2H(dsname = "birds_folder_1", threads = 5,
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  threadsf2h = 2, m = 10, subsample = 1, attr.space = 1,
+  ensembleClus = 0,
+  HierApproach = "local"
+)
+```
+
+#### Running EF2H3 (see EF2H paper)
+
+```{r setup, include=FALSE}
+library("F2H")
+resultEF2H3 <- EF2H(dsname = "birds_folder_1", threads = 5,
+  train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
+  test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
+  threadsf2h = 2, m = 10, subsample = 1, attr.space = 1,
+  ensembleClus = 1,
+  HierApproach = "global"
+)
+```
+
 #### 
 
-## Limitations of F2H implementation
+## Limitations of F2H and EF2H implementation
 
 -   All implementations were tested only on Linux systems;
 
@@ -195,7 +274,7 @@ result <- F2H(
 
 ## How to cite?
 ```
-@article{F2H,
+@article{F2H2023,
   author = {Ferrandin, Mauri and Cerri, Ricardo},
   title = {{Multi-label classification via closed frequent labelsets and label taxonomies}},
   booktitle = {Soft Computing},
@@ -205,4 +284,16 @@ result <- F2H(
   year = {2023}
 }
 
+@article{EF2H2025,
+  title = {Ensemble multi-label classification using closed frequent labelsets and label taxonomies},
+  journal = {Applied Soft Computing},
+  volume = {171},
+  pages = {112853},
+  year = {2025},
+  issn = {1568-4946},
+  doi = {https://doi.org/10.1016/j.asoc.2025.112853},
+  url = {https://www.sciencedirect.com/science/article/pii/S1568494625001644},
+  author = {Mauri Ferrandin and Ricardo Cerri},
+  keywords = {Multi-label classification, Ensemble multi-label classification, Problem transformation},
+}
 
