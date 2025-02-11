@@ -15,9 +15,11 @@
 ###########################################################################################
 
 # Overwrite this variable to point to the Clus directory
-$clusdir = "/home/mauri/Downloads/Clus_working_hsc";
-
-$clusmem = "8g";
+#$clusdir = "/home/mauri/Downloads/Clus_working_hsc";
+$clusdir = $ARGV[1];
+$javaExe = $ARGV[2];
+#$clusmem = "8g";
+$clusmem = $ARGV[3];
 
 $do_run_clus = 1;
 
@@ -49,7 +51,7 @@ sub run_clus {
         # If Clus was downloaded, then use included pre-compiled .jar file
         $clus_cp = "$clusdir/Clus.jar";
     }
-    $cmd = "java -Xmx$clusmem -cp $clus_cp $args";
+    $cmd = "$javaExe $clusmem -cp $clus_cp $args";
     print "Running: $cmd\n";
     system($cmd);
 }
