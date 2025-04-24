@@ -789,7 +789,7 @@ testeF2Hhmc <- function(){
     x <- F2H(dsname = "yeast", threads = 4, HierApproach = "global",
            train_file = file.path(paste(findF2HLibPath(), "/data/yeast_train_1", sep="")),
            test_file = file.path(paste(findF2HLibPath(), "/data/yeast_test_1", sep="")),
-           ensembleClus = 1
+           ensembleClus = 0
            )
 
    y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
@@ -800,7 +800,7 @@ testeF2Hhmc <- function(){
    y <- F2H(dsname = "birds", threads = 4, HierApproach = "global",
             train_file = file.path(paste(findF2HLibPath(), "/data/birds_train_1", sep="")),
             test_file = file.path(paste(findF2HLibPath(), "/data/birds_test_1", sep="")),
-            ensembleClus = 1
+            ensembleClus = 0
    )
 
 
