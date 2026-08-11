@@ -132,7 +132,7 @@ The following parameters are allowed:
 
     -   *default value* clusOptimizeErrorMeasure = "WeightedAverageAUPRC",
 
--   **ensembleClus**: use ensemble version of F2H (**Still under development)**, ensembleClus = 0 is the only option for now
+-   **ensembleClus**: use ensemble version of F2H (**See bellow the EF2H versions)**
 
     -   *default value* ensembleClus = 0
 
